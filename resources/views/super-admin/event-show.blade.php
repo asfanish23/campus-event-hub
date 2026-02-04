@@ -5,6 +5,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $event->name }} | Campus Event Hub</title>
     @vite('resources/css/app.css')
+    <style>
+        .prose {
+            color: inherit;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #1f2937;
+        }
+        .prose h1 { font-size: 1.875rem; }
+        .prose h2 { font-size: 1.5rem; }
+        .prose h3 { font-size: 1.25rem; }
+        .prose h4 { font-size: 1.125rem; }
+        .prose h5, .prose h6 { font-size: 1rem; }
+        .prose p {
+            margin-bottom: 1rem;
+            line-height: 1.75;
+        }
+        .prose ul, .prose ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+        .prose li {
+            margin-bottom: 0.5rem;
+        }
+        .prose strong {
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .prose em {
+            font-style: italic;
+        }
+        .prose code {
+            background-color: #f3f4f6;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #d946ef;
+        }
+        .prose pre {
+            background-color: #1f2937;
+            color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        .prose pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        .prose blockquote {
+            border-left: 4px solid #d1d5db;
+            padding-left: 1rem;
+            margin-left: 0;
+            margin-bottom: 1rem;
+            color: #6b7280;
+            font-style: italic;
+        }
+        .prose a {
+            color: #7c3aed;
+            text-decoration: underline;
+        }
+        .prose a:hover {
+            color: #6d28d9;
+        }
+        .prose hr {
+            border: none;
+            border-top: 2px solid #e5e7eb;
+            margin: 2rem 0;
+        }
+        .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+        .prose table thead {
+            background-color: #f9fafb;
+        }
+        .prose table th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 700;
+            border: 1px solid #e5e7eb;
+        }
+        .prose table td {
+            padding: 0.75rem;
+            border: 1px solid #e5e7eb;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen">
@@ -137,7 +230,9 @@
                 <!-- Description -->
                 <div class="bg-white rounded-lg shadow p-6 mb-6">
                     <h3 class="text-lg font-bold text-gray-800 mb-4">Description</h3>
-                    <p class="text-gray-600 leading-relaxed">{{ $event->description }}</p>
+                    <div class="prose prose-sm max-w-none">
+                        {!! (new \Parsedown())->text($event->description) !!}
+                    </div>
                 </div>
 
                 <!-- Event Gallery -->
