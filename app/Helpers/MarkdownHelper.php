@@ -7,7 +7,7 @@ class MarkdownHelper
     public static function parse($text)
     {
         if (!class_exists('Parsedown')) {
-            require_once base_path('vendor/parsedown/parsedown/Parsedown.php');
+            require_once __DIR__ . '/../../vendor/parsedown/parsedown/Parsedown.php';
         }
         return (new \Parsedown())->text($text);
     }
