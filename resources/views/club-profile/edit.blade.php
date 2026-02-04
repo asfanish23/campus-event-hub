@@ -598,13 +598,14 @@
             }
 
             // Form submission handling
-            const mainForm = document.querySelector('form[action*="club-profile.update"]');
+            const mainForm = document.querySelector('form[method="POST"][enctype="multipart/form-data"]');
             const saveBtn = document.getElementById('saveBtn');
             
             if (mainForm && saveBtn) {
                 console.log('✅ Form and button found');
                 
                 saveBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
                     console.log('✅ Save button clicked');
                     
                     // Get all form fields
