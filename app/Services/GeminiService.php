@@ -21,9 +21,9 @@ class GeminiService
         $this->apiKey = config('services.gemini.api_key');
     }
 
-    public function generateEventDescription($eventName, $category, $location, $attendees = null)
+    public function generateEventDescription($eventName, $category, $location, $attendees = null, $extraDetails = null)
     {
-        $prompt = $this->buildPrompt($eventName, $category, $location, $attendees);
+        $prompt = $this->buildPrompt($eventName, $category, $location, $attendees, $extraDetails);
         return $this->callGemini($prompt);
     }
 
@@ -97,7 +97,7 @@ class GeminiService
         }
     }
 
-    private function buildPrompt($eventName, $category, $location, $attendees)
+    private function buildPrompt($eventName, $category, $location, $attendees, $extraDetails = null)
     {
         $prompt = "You are a pro campus event promoter for 'Campus Event Hub'. ";
         $prompt .= "Task: Write a complete, catchy, and energetic event description for: '$eventName'. ";
@@ -109,6 +109,10 @@ class GeminiService
             $prompt .= $attendees > 100 
                 ? " Highlight that this is a massive event you don't want to miss!" 
                 : " Highlight that slots are very limited and exclusive!";
+        }
+
+        if ($extraDetails) {
+            $prompt .= " Additional special details to highlight: $extraDetails.";
         }
 
         return $prompt;

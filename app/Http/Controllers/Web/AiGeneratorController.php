@@ -25,14 +25,16 @@ class AiGeneratorController extends Controller
             'event_name' => 'required|string',
             'category' => 'required|string',
             'location' => 'required|string',
-            'attendees' => 'nullable|integer'
+            'attendees' => 'nullable|integer',
+            'extra_details' => 'nullable|string'
         ]);
 
         $result = $this->geminiService->generateEventDescription(
             $request->event_name,
             $request->category,
             $request->location,
-            $request->attendees
+            $request->attendees,
+            $request->extra_details
         );
 
         return response()->json($result);
