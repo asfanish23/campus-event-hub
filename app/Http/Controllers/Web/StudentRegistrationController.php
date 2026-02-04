@@ -11,7 +11,7 @@ class StudentRegistrationController extends Controller
 {
     public function showRegister()
     {
-        return view('auth.student-register');
+        return view('Auth.student-register');
     }
 
     public function register(Request $request)
