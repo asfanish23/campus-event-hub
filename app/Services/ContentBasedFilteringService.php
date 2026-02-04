@@ -160,9 +160,14 @@ class ContentBasedFilteringService
             // Calculate relevance based on user profile
             $profileRelevance = $this->calculateUserEventRelevance($user, $event, $userProfile);
 
-            // If user has no likes yet, give equal weight to all events
+            // If user has no likes yet, use cold-start strategy
             if (empty($userProfile)) {
-                $similarity = 0.5;
+                // For new users with no preferences, prioritize:
+                // 1. Upcoming events (sooner is better)
+                // 2. Recent/popular events
+                $daysUntilEvent = now()->diffInDays($event->date);
+                $recencyBonus = max(0, 1 - ($daysUntilEvent / 30)); // Closer events get higher bonus
+                $similarity = 0.6 + (0.4 * $recencyBonus); // Base 0.6 + up to 0.4 bonus for recency
             } else {
                 // Calculate average similarity to liked events
                 $similarities = [];
