@@ -148,6 +148,12 @@ class InstagramController extends Controller
             $response = $this->instagramService->postImage($publicImageUrl, $caption);
             
             if ($response['success']) {
+                // Save the Instagram media ID to the event
+                $event->update([
+                    'instagram_media_id' => $response['media_id'],
+                    'instagram_posted_at' => now(),
+                ]);
+                
                 Log::info('Event successfully posted to Instagram', [
                     'event_id' => $event->id,
                     'media_id' => $response['media_id']
