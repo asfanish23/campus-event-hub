@@ -162,7 +162,6 @@
 
                                 <!-- Hidden Inputs for Position Data -->
                                 <input type="hidden" id="bgPositionV" name="background_position_v" value="{{ $club->background_position_v ?? 0 }}">
-
                                 <label class="block text-sm font-semibold text-gray-700 mb-3">Upload Background Photo</label>
                                 <input type="file" id="backgroundPhotoInput" name="background_photo" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent" onchange="previewBackgroundPhoto(this)">
                                 <p class="text-xs text-gray-500 mt-2">Accepted formats: JPEG, PNG, JPG, GIF (Max 5MB)</p>
@@ -490,9 +489,21 @@
             }
         }
 
-        // Instagram OAuth auto-fetch functionality
+        // Initialize background controls on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Setup vertical range slider
+            const bgVertical = document.getElementById('bgVertical');
+            if (bgVertical) {
+                bgVertical.addEventListener('input', updateBackgroundPosition);
+            }
+
+            // Setup drag and drop for background
+            setupBackgroundDragAndDrop();
+
+            // Instagram OAuth auto-fetch functionality
             const fetchBtn = document.getElementById('fetchBtn');
+            if (!fetchBtn) return; // Exit if Instagram section not found
+
             const tokenInput = document.getElementById('accessTokenInput');
             const submitBtn = document.getElementById('submitBtn');
             const resultMessage = document.getElementById('resultMessage');
@@ -500,8 +511,6 @@
             const businessIdInput = document.getElementById('businessIdInput');
             const tokenInputHidden = document.getElementById('tokenInput');
             const tokenForm = document.getElementById('tokenForm');
-
-            if (!fetchBtn) return;
 
             fetchBtn.addEventListener('click', async function() {
                 const token = tokenInput.value.trim();
