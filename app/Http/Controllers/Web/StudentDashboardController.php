@@ -9,6 +9,7 @@ use App\Models\StudentEventRegistration;
 use App\Models\EventLike;
 use App\Services\ContentBasedFilteringService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class StudentDashboardController extends Controller
 {
