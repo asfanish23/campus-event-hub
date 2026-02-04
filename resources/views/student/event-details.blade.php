@@ -159,7 +159,7 @@
                 <div class="bg-white rounded-xl shadow-md p-8 mb-8">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">About This Event</h2>
                     <div class="text-gray-700 leading-relaxed prose prose-sm max-w-none">
-                        {!! (new \Parsedown())->text($event->description) !!}
+                        {!! \App\Helpers\MarkdownHelper::parse($event->description) !!}
                     </div>
                 </div>
 

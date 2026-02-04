@@ -245,7 +245,7 @@
                             <div class="mb-6">
                                 <p class="text-gray-600 text-sm font-semibold mb-2">Description</p>
                                 <div class="prose prose-sm max-w-none">
-                                    {!! (new \Parsedown())->text($event->description) !!}
+                                    {!! \App\Helpers\MarkdownHelper::parse($event->description) !!}
                                 </div>
                             </div>
                         </div>
