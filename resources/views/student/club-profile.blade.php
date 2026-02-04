@@ -11,7 +11,7 @@
 
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gradient-to-b from-purple-600 to-purple-800 text-white overflow-y-auto flex flex-col">
+        <aside class="hidden w-64 bg-gradient-to-b from-purple-600 to-purple-800 text-white overflow-y-auto flex flex-col">
             <div class="p-6 border-b border-purple-500">
                 <h1 class="text-xl font-bold">Campus Event Hub</h1>
                 <p class="text-xs text-purple-200">Student Portal</p>
