@@ -13,7 +13,7 @@ class AdminRegistrationController extends Controller
     public function showRegister()
     {
         $clubs = Club::all();
-        return view('auth.admin-register', ['clubs' => $clubs]);
+        return view('Auth.admin-register', ['clubs' => $clubs]);
     }
 
     public function register(Request $request)
