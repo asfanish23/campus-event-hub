@@ -97,6 +97,9 @@ class EventController extends Controller
             'event_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'event_photos' => 'nullable|array',
             'event_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
+            'instagram_auto_post' => 'nullable|boolean',
+            'instagram_post_timing' => 'nullable|in:immediate,scheduled',
+            'instagram_scheduled_at' => 'nullable|date_format:Y-m-d\TH:i|after:now',
         ]);
 
         // Assign club_id from authenticated user
@@ -111,6 +114,19 @@ class EventController extends Controller
                 \Log::error('Event image upload error: ' . $e->getMessage());
                 return back()->withErrors(['event_image' => 'Failed to upload image: ' . $e->getMessage()]);
             }
+        }
+
+        // Process Instagram auto-post settings
+        if ($request->has('instagram_auto_post') && $request->instagram_auto_post) {
+            $validated['instagram_auto_post'] = true;
+            
+            // Handle scheduled posting
+            if ($request->instagram_post_timing === 'scheduled' && $request->instagram_scheduled_at) {
+                $validated['instagram_scheduled_at'] = $request->instagram_scheduled_at;
+            }
+        } else {
+            $validated['instagram_auto_post'] = false;
+            $validated['instagram_scheduled_at'] = null;
         }
 
         $event = Event::create($validated);
@@ -128,64 +144,83 @@ class EventController extends Controller
             }
         }
 
-        // Post event image to Instagram if available
-        if (!empty($validated['event_image'])) {
-            try {
-                // Get the club associated with the current user
-                // Assuming the user has a club or is part of a club
-                $user = Auth::user();
-                $club = Club::where('admin_id', $user->id)->first();
-                
-                if ($club) {
-                    // Create caption
-                    $caption = $event->name . "\n\n" . 
-                              $event->date->format('M d, Y') . "\n" . 
-                              $event->location . "\n\n" . 
-                              $event->description;
-                    
-                    // Get the local image path
-                    $localImagePath = storage_path('app/public/' . $validated['event_image']);
-                    
-                    // Post to club's Instagram account
-                    $response = $this->clubInstagramService->postEventToClubInstagram(
-                        $club,
-                        $localImagePath,
-                        $caption,
-                        (string)$event->id
-                    );
-                    
-                    if ($response['success']) {
-                        // Save Instagram media ID and timestamp to event
-                        $event->update([
-                            'instagram_media_id' => $response['media_id'],
-                            'instagram_posted_at' => now(),
-                            'instagram_last_synced_at' => now(),
-                        ]);
-
-                        // Create notification for post
-                        $this->notificationService->createPostNotification($event);
-
-                        Log::info('Event posted to club Instagram', [
-                            'event_id' => $event->id,
-                            'club_id' => $club->id,
-                            'media_id' => $response['media_id']
-                        ]);
-                    } else {
-                        Log::warning('Club Instagram posting failed', [
-                            'event_id' => $event->id,
-                            'club_id' => $club->id,
-                            'error' => $response['message']
-                        ]);
-                    }
-                } else {
-                    Log::warning('No club found for user', ['user_id' => $user->id]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Exception during Instagram posting', ['event_id' => $event->id, 'error' => $e->getMessage()]);
+        // Handle Instagram posting based on settings
+        if ($event->instagram_auto_post && !empty($validated['event_image'])) {
+            // If scheduled for later, don't post immediately
+            if ($event->instagram_scheduled_at && $event->instagram_scheduled_at->isFuture()) {
+                Log::info('Event scheduled for Instagram posting', [
+                    'event_id' => $event->id,
+                    'scheduled_at' => $event->instagram_scheduled_at,
+                ]);
+            } else {
+                // Post immediately
+                $this->postEventToInstagram($event, $user, $validated['event_image']);
             }
         }
 
         return redirect()->route('event.index')->with('success', 'Event created successfully!');
+    }
+
+    /**
+     * Helper method to post event to Instagram
+     */
+    private function postEventToInstagram(Event $event, $user, $imagePath)
+    {
+        try {
+            $club = Club::where('admin_id', $user->id)->first();
+            
+            if (!$club) {
+                Log::warning('No club found for user', ['user_id' => $user->id]);
+                return;
+            }
+
+            // Create caption
+            $caption = $event->name . "\n\n" . 
+                      $event->date->format('M d, Y') . "\n" . 
+                      $event->location . "\n\n" . 
+                      $event->description;
+            
+            // Get the local image path
+            $localImagePath = storage_path('app/public/' . $imagePath);
+            
+            // Post to club's Instagram account
+            $response = $this->clubInstagramService->postEventToClubInstagram(
+                $club,
+                $localImagePath,
+                $caption,
+                (string)$event->id
+            );
+            
+            if ($response['success']) {
+                // Save Instagram media ID and timestamp to event
+                $event->update([
+                    'instagram_media_id' => $response['media_id'],
+                    'instagram_posted_at' => now(),
+                    'instagram_last_synced_at' => now(),
+                    'instagram_scheduled_posted' => true,
+                ]);
+
+                // Create notification for post
+                $this->notificationService->createPostNotification($event);
+
+                Log::info('Event posted to club Instagram', [
+                    'event_id' => $event->id,
+                    'club_id' => $club->id,
+                    'media_id' => $response['media_id']
+                ]);
+            } else {
+                Log::warning('Club Instagram posting failed', [
+                    'event_id' => $event->id,
+                    'club_id' => $club->id,
+                    'error' => $response['message']
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Exception during Instagram posting', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**

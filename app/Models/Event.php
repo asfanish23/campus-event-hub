@@ -30,6 +30,9 @@ class Event extends Model
         'instagram_reach',
         'instagram_impressions',
         'instagram_engagement_rate',
+        'instagram_auto_post',
+        'instagram_scheduled_at',
+        'instagram_scheduled_posted',
     ];
 
     protected $casts = [
@@ -39,6 +42,9 @@ class Event extends Model
         'qr_active' => 'boolean',
         'instagram_posted_at' => 'datetime',
         'instagram_last_synced_at' => 'datetime',
+        'instagram_auto_post' => 'boolean',
+        'instagram_scheduled_at' => 'datetime',
+        'instagram_scheduled_posted' => 'boolean',
     ];
 
     public function club()
@@ -119,6 +125,42 @@ class Event extends Model
             return 0;
         }
         return ($this->likes()->count() / $totalUsers) * 100;
+    }
+
+    /**
+     * Check if event has Instagram auto-post enabled and is ready to post
+     */
+    public function isReadyForInstagramAutoPost(): bool
+    {
+        return $this->instagram_auto_post && 
+               !$this->isPostedToInstagram() &&
+               !is_null($this->event_image);
+    }
+
+    /**
+     * Check if event has a scheduled Instagram post that needs to be sent
+     */
+    public function isReadyForScheduledInstagramPost(): bool
+    {
+        return $this->instagram_auto_post &&
+               !is_null($this->instagram_scheduled_at) &&
+               !$this->instagram_scheduled_posted &&
+               !$this->isPostedToInstagram() &&
+               $this->instagram_scheduled_at->isPast() &&
+               !is_null($this->event_image);
+    }
+
+    /**
+     * Get all events ready for Instagram scheduled posting
+     */
+    public static function getScheduledPostsReady()
+    {
+        return self::where('instagram_auto_post', true)
+            ->where('instagram_scheduled_posted', false)
+            ->whereNotNull('instagram_scheduled_at')
+            ->whereNull('instagram_media_id')
+            ->where('instagram_scheduled_at', '<=', now())
+            ->get();
     }
 }
 

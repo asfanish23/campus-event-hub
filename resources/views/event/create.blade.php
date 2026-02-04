@@ -207,6 +207,56 @@
                             </div>
                         </div>
 
+                        <!-- Instagram Posting Section -->
+                        <div class="mb-8 pb-8 border-b border-gray-200">
+                            <h3 class="text-lg font-bold text-gray-800 mb-6">📱 Instagram Auto-Posting</h3>
+                            
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                <div class="flex items-start gap-3">
+                                    <span class="text-xl mt-0.5">ℹ️</span>
+                                    <p class="text-sm text-blue-800">Automatically post your event to Instagram and track engagement metrics in real-time.</p>
+                                </div>
+                            </div>
+
+                            <!-- Auto-Post Checkbox -->
+                            <div class="mb-6">
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" name="instagram_auto_post" id="instagramAutoPostCheckbox" value="1" class="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-600">
+                                    <span class="text-sm font-semibold text-gray-700">Auto-post to Instagram when event is created</span>
+                                </label>
+                                <p class="text-xs text-gray-500 mt-2 ml-8">Posts immediately to your club's Instagram account</p>
+                            </div>
+
+                            <!-- Schedule Options (shown when checkbox is checked) -->
+                            <div id="instagramScheduleContainer" style="display: none;" class="bg-gray-50 border border-gray-300 rounded-lg p-6">
+                                <div class="mb-6">
+                                    <div class="flex items-center gap-3 mb-4">
+                                        <input type="radio" name="instagram_post_timing" id="postImmediately" value="immediate" checked class="w-4 h-4 text-purple-600 border-gray-300 focus:ring-2 focus:ring-purple-600">
+                                        <label for="postImmediately" class="text-sm font-semibold text-gray-700">Post Immediately</label>
+                                    </div>
+                                    <p class="text-xs text-gray-500 ml-7">Post to Instagram right away when creating the event</p>
+                                </div>
+
+                                <div class="mb-6">
+                                    <div class="flex items-center gap-3 mb-4">
+                                        <input type="radio" name="instagram_post_timing" id="postScheduled" value="scheduled" class="w-4 h-4 text-purple-600 border-gray-300 focus:ring-2 focus:ring-purple-600">
+                                        <label for="postScheduled" class="text-sm font-semibold text-gray-700">Schedule Post for Later</label>
+                                    </div>
+                                    <p class="text-xs text-gray-500 ml-7 mb-3">Choose a specific date and time to post</p>
+                                    
+                                    <div id="scheduleDateTimeContainer" style="display: none;" class="ml-7 space-y-3">
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">Schedule Date & Time</label>
+                                            <input type="datetime-local" name="instagram_scheduled_at" id="instagramScheduledAt" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">
+                                            <p class="text-xs text-gray-500 mt-2">Select when you want the event to be posted</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-gray-500 mt-4">💡 Tip: Make sure your event has a cover image before enabling Instagram posting. The system will post the main event image to your club's Instagram account.</p>
+                        </div>
+
                         <!-- Action Buttons -->
                         <div class="flex gap-4">
                             <button type="submit" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
@@ -228,6 +278,47 @@
         const aiStatus = document.getElementById('aiStatus');
         const tweakContainer = document.getElementById('tweakContainer');
         const tweakBtns = document.querySelectorAll('.tweak-btn');
+
+        // ============================================
+        // INSTAGRAM AUTO-POSTING SECTION
+        // ============================================
+        const instagramAutoPostCheckbox = document.getElementById('instagramAutoPostCheckbox');
+        const instagramScheduleContainer = document.getElementById('instagramScheduleContainer');
+        const postImmediatelyRadio = document.getElementById('postImmediately');
+        const postScheduledRadio = document.getElementById('postScheduled');
+        const scheduleDateTimeContainer = document.getElementById('scheduleDateTimeContainer');
+        const instagramScheduledAt = document.getElementById('instagramScheduledAt');
+
+        // Show/hide Instagram section when checkbox changes
+        instagramAutoPostCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                instagramScheduleContainer.style.display = 'block';
+            } else {
+                instagramScheduleContainer.style.display = 'none';
+                instagramScheduledAt.value = ''; // Clear scheduled time if unchecked
+            }
+        });
+
+        // Show/hide schedule datetime when "Schedule Post for Later" is selected
+        postScheduledRadio.addEventListener('change', function() {
+            if (this.checked) {
+                scheduleDateTimeContainer.style.display = 'block';
+            }
+        });
+
+        postImmediatelyRadio.addEventListener('change', function() {
+            if (this.checked) {
+                scheduleDateTimeContainer.style.display = 'none';
+            }
+        });
+
+        // Set minimum datetime to now + 5 minutes
+        instagramScheduledAt.addEventListener('click', function() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 5);
+            const minDateTime = now.toISOString().slice(0, 16);
+            instagramScheduledAt.setAttribute('min', minDateTime);
+        });
 
         // ============================================
         // 1. TYPING EFFECT FUNCTION (Kesan Mengetik)
