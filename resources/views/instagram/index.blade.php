@@ -263,8 +263,16 @@
                                         <!-- Scheduled Info -->
                                         @if($event->instagram_scheduled_at && !$event->instagram_scheduled_posted)
                                             <div class="bg-yellow-50 border border-yellow-200 rounded p-2 mb-4 text-xs">
-                                                <p class="font-semibold text-yellow-800">⏱️ Scheduled for:</p>
+                                                <p class="font-semibold text-yellow-800">⏱️ Scheduled Post for:</p>
                                                 <p class="text-yellow-700">{{ $event->instagram_scheduled_at->format('M d, Y H:i') }}</p>
+                                            </div>
+                                        @endif
+
+                                        <!-- Scheduled Repost Info -->
+                                        @if($event->instagram_repost_at && !$event->instagram_reposted)
+                                            <div class="bg-yellow-50 border border-yellow-200 rounded p-2 mb-4 text-xs">
+                                                <p class="font-semibold text-yellow-800">⏱️ Scheduled Repost for:</p>
+                                                <p class="text-yellow-700">{{ $event->instagram_repost_at->format('M d, Y H:i') }}</p>
                                             </div>
                                         @endif
 
@@ -298,20 +306,32 @@
                                                     </form>
                                                 @else
                                                     <!-- Repost Options for Already Posted -->
-                                                    <div class="space-y-2">
-                                                        <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="w-full">
+                                                    @if($event->instagram_auto_repost && $event->instagram_repost_at && !$event->instagram_reposted)
+                                                        <!-- Cancel Repost Schedule Button -->
+                                                        <form action="{{ route('instagram.cancel-repost-schedule', $event) }}" method="POST" class="w-full">
                                                             @csrf
                                                             <button type="submit" 
-                                                                    class="w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition"
-                                                                    onclick="return confirm('Repost to Instagram now?')">
-                                                                🔄 Repost Now
+                                                                    class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                                                                    onclick="return confirm('Cancel scheduled repost?')">
+                                                                ❌ Cancel Repost Schedule
                                                             </button>
                                                         </form>
-                                                        <button onclick="openRepostModal({{ $event->id }})" 
-                                                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                                📅 Schedule Repost
-                                                        </button>
-                                                    </div>
+                                                    @else
+                                                        <div class="space-y-2">
+                                                            <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="w-full">
+                                                                @csrf
+                                                                <button type="submit" 
+                                                                        class="w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition"
+                                                                        onclick="return confirm('Repost to Instagram now?')">
+                                                                    🔄 Repost Now
+                                                                </button>
+                                                            </form>
+                                                            <button onclick="openRepostModal({{ $event->id }})" 
+                                                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                                                    📅 Schedule Repost
+                                                            </button>
+                                                        </div>
+                                                    @endif
                                                 @endif
                                             @elseif(!$event->event_image)
                                                 <button disabled class="w-full bg-gray-300 text-gray-600 font-semibold py-2 px-4 rounded-lg cursor-not-allowed">

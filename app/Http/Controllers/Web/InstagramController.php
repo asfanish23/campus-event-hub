@@ -381,6 +381,33 @@ class InstagramController extends Controller
         }
     }
 
+    /**
+     * Cancel scheduled Instagram repost
+     */
+    public function cancelRepostSchedule(Event $event)
+    {
+        try {
+            $event->update([
+                'instagram_auto_repost' => false,
+                'instagram_repost_at' => null,
+                'instagram_reposted' => false,
+            ]);
+
+            Log::info('Scheduled Instagram repost cancelled', [
+                'event_id' => $event->id,
+            ]);
+
+            return redirect()->back()->with('success', 'Scheduled repost cancelled!');
+        } catch (\Exception $e) {
+            Log::error('Error cancelling scheduled repost', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
     public function testApi()
     {
         try {
