@@ -359,10 +359,11 @@ class InstagramController extends Controller
             // Convert datetime-local format to timestamp
             $repostAt = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['instagram_repost_at']);
 
-            // Save repost schedule in a new column or use existing scheduled columns
-            // We'll use instagram_repost_scheduled_at if it exists, otherwise use scheduled columns
+            // Save repost schedule
             $event->update([
+                'instagram_auto_repost' => true,
                 'instagram_repost_at' => $repostAt,
+                'instagram_reposted' => false,
             ]);
 
             Log::info('Event scheduled for Instagram reposting', [
