@@ -13,7 +13,7 @@ class GeminiService
      * Menggunakan model v1beta gemini-2.0-flash untuk kepantasan 
      * dan kualiti teks yang lebih baik pada tahun 2026.
      */
-    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
+    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
     protected $maxRetries = 3;
 
     public function __construct()
