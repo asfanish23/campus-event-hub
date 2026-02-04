@@ -6,17 +6,25 @@ class MarkdownHelper
 {
     public static function parse($text)
     {
-        $parsedownPath = dirname(__DIR__, 2) . '/vendor/parsedown/parsedown/Parsedown.php';
-        
-        if (file_exists($parsedownPath) && !class_exists('Parsedown')) {
-            require_once $parsedownPath;
+        if (empty($text)) {
+            return '';
         }
-        
-        if (class_exists('Parsedown')) {
-            return (new \Parsedown())->text($text);
+
+        // Ensure Parsedown is loaded
+        if (!class_exists('\Parsedown')) {
+            $parsedownFile = dirname(__DIR__, 2) . '/vendor/parsedown/parsedown/Parsedown.php';
+            if (file_exists($parsedownFile)) {
+                require_once $parsedownFile;
+            }
         }
-        
-        // Fallback: just escape the text
-        return htmlspecialchars($text);
+
+        // Parse with Parsedown
+        if (class_exists('\Parsedown')) {
+            $parsedown = new \Parsedown();
+            return $parsedown->text($text);
+        }
+
+        // Fallback: return as-is if Parsedown not available
+        return $text;
     }
 }
