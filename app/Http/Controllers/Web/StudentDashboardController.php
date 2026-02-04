@@ -39,9 +39,9 @@ class StudentDashboardController extends Controller
         // Count registered events
         $registeredEventsCount = count($registeredEventIds);
         
-        // Get recommended events using CBF algorithm (increase limit for better options)
+        // Get recommended events using CBF algorithm (top 5 most recommended)
         $cbfService = new ContentBasedFilteringService();
-        $recommendedEvents = $cbfService->getRecommendations($user, 10);
+        $recommendedEvents = $cbfService->getRecommendations($user, 5);
         
         // Get all clubs for sidebar
         $clubs = Club::all();
