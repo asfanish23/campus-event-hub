@@ -93,6 +93,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/instagram/post-event/{event}', [InstagramController::class, 'postEvent'])->name('instagram.post-event');
     Route::post('/instagram/schedule-event/{event}', [InstagramController::class, 'scheduleEvent'])->name('instagram.schedule-event');
     Route::post('/instagram/cancel-scheduled/{event}', [InstagramController::class, 'cancelScheduledPost'])->name('instagram.cancel-scheduled');
+    Route::post('/instagram/repost-now/{event}', [InstagramController::class, 'repostNow'])->name('instagram.repost-now');
+    Route::post('/instagram/schedule-repost/{event}', [InstagramController::class, 'scheduleRepost'])->name('instagram.schedule-repost');
     Route::get('/instagram/settings', [InstagramController::class, 'settings'])->name('instagram.settings');
     Route::get('/instagram/test', [InstagramController::class, 'testApi'])->name('instagram.test');
 

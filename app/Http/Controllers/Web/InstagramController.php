@@ -257,6 +257,123 @@ class InstagramController extends Controller
     /**
      * Test Instagram API with a public image
      */
+    /**
+     * Repost an event immediately to Instagram
+     */
+    public function repostNow(Request $request, Event $event)
+    {
+        // Validate the event has an image
+        if (!$event->event_image) {
+            return redirect()->back()->with('error', 'Event must have an image to repost to Instagram');
+        }
+
+        // Validate event has been posted before
+        if (!$event->isPostedToInstagram()) {
+            return redirect()->back()->with('error', 'Event has not been posted to Instagram yet');
+        }
+
+        try {
+            // Get local image path
+            $localImagePath = storage_path('app/public/' . $event->event_image);
+            
+            Log::info('Preparing to repost event to Instagram', [
+                'event_id' => $event->id,
+                'local_path' => $localImagePath,
+            ]);
+
+            // Upload image to ImgBB to get a public URL
+            $publicImageUrl = $this->imgbbService->uploadImage($localImagePath, 'event-repost-' . $event->id);
+            
+            Log::info('Image uploaded to ImgBB for repost', [
+                'event_id' => $event->id,
+                'imgbb_url' => $publicImageUrl,
+            ]);
+
+            // Create caption
+            $caption = "🔄 REPOST\n\n" . 
+                      $event->name . "\n\n" . 
+                      $event->date->format('M d, Y') . "\n" . 
+                      $event->location . "\n\n" . 
+                      $event->description;
+            
+            // Post to Instagram using ImgBB URL
+            $response = $this->instagramService->postImage($publicImageUrl, $caption);
+            
+            if ($response['success']) {
+                Log::info('Event successfully reposted to Instagram', [
+                    'event_id' => $event->id,
+                    'media_id' => $response['media_id']
+                ]);
+                
+                return redirect()->back()->with('success', 'Event reposted to Instagram successfully!');
+            } else {
+                Log::warning('Failed to repost event to Instagram', [
+                    'event_id' => $event->id,
+                    'error' => $response['message']
+                ]);
+                
+                return redirect()->back()->with('error', 'Failed to repost to Instagram: ' . $response['message']);
+            }
+        } catch (Exception $e) {
+            Log::error('Exception reposting to Instagram', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Schedule a repost of an event to Instagram
+     */
+    public function scheduleRepost(Request $request, Event $event)
+    {
+        // Validate input
+        $validated = $request->validate([
+            'instagram_repost_at' => 'required|date_format:Y-m-d\TH:i|after:now',
+        ], [
+            'instagram_repost_at.required' => 'Please select a date and time',
+            'instagram_repost_at.date_format' => 'Invalid date/time format',
+            'instagram_repost_at.after' => 'Scheduled time must be in the future',
+        ]);
+
+        // Validate the event has an image
+        if (!$event->event_image) {
+            return redirect()->back()->with('error', 'Event must have an image to schedule reposting');
+        }
+
+        // Validate event has been posted before
+        if (!$event->isPostedToInstagram()) {
+            return redirect()->back()->with('error', 'Event has not been posted to Instagram yet');
+        }
+
+        try {
+            // Convert datetime-local format to timestamp
+            $repostAt = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['instagram_repost_at']);
+
+            // Save repost schedule in a new column or use existing scheduled columns
+            // We'll use instagram_repost_scheduled_at if it exists, otherwise use scheduled columns
+            $event->update([
+                'instagram_repost_at' => $repostAt,
+            ]);
+
+            Log::info('Event scheduled for Instagram reposting', [
+                'event_id' => $event->id,
+                'repost_at' => $repostAt,
+            ]);
+
+            return redirect()->back()->with('success', 'Event scheduled to repost on Instagram at ' . $repostAt->format('M d, Y H:i') . '!');
+        } catch (\Exception $e) {
+            Log::error('Error scheduling Instagram repost', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
     public function testApi()
     {
         try {

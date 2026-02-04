@@ -33,6 +33,9 @@ class Event extends Model
         'instagram_auto_post',
         'instagram_scheduled_at',
         'instagram_scheduled_posted',
+        'instagram_auto_repost',
+        'instagram_repost_at',
+        'instagram_reposted',
     ];
 
     protected $casts = [
@@ -43,6 +46,11 @@ class Event extends Model
         'instagram_posted_at' => 'datetime',
         'instagram_last_synced_at' => 'datetime',
         'instagram_auto_post' => 'boolean',
+        'instagram_scheduled_at' => 'datetime',
+        'instagram_scheduled_posted' => 'boolean',
+        'instagram_auto_repost' => 'boolean',
+        'instagram_repost_at' => 'datetime',
+        'instagram_reposted' => 'boolean',
         'instagram_scheduled_at' => 'datetime',
         'instagram_scheduled_posted' => 'boolean',
     ];
