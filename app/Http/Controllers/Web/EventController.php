@@ -8,6 +8,8 @@ use App\Models\EventMedia;
 use App\Models\Club;
 use App\Services\ClubInstagramService;
 use App\Services\InstagramNotificationService;
+use App\Services\InstagramService;
+use App\Services\ImgBBService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -17,13 +19,19 @@ class EventController extends Controller
 {
     private ClubInstagramService $clubInstagramService;
     private InstagramNotificationService $notificationService;
+    private InstagramService $instagramService;
+    private ImgBBService $imgbbService;
 
     public function __construct(
         ClubInstagramService $clubInstagramService,
-        InstagramNotificationService $notificationService
+        InstagramNotificationService $notificationService,
+        InstagramService $instagramService,
+        ImgBBService $imgbbService
     ) {
         $this->clubInstagramService = $clubInstagramService;
         $this->notificationService = $notificationService;
+        $this->instagramService = $instagramService;
+        $this->imgbbService = $imgbbService;
     }
 
     /**
@@ -167,13 +175,6 @@ class EventController extends Controller
     private function postEventToInstagram(Event $event, $user, $imagePath)
     {
         try {
-            $club = Club::where('admin_id', $user->id)->first();
-            
-            if (!$club) {
-                Log::warning('No club found for user', ['user_id' => $user->id]);
-                return;
-            }
-
             // Create caption
             $caption = $event->name . "\n\n" . 
                       $event->date->format('M d, Y') . "\n" . 
@@ -183,13 +184,21 @@ class EventController extends Controller
             // Get the local image path
             $localImagePath = storage_path('app/public/' . $imagePath);
             
-            // Post to club's Instagram account
-            $response = $this->clubInstagramService->postEventToClubInstagram(
-                $club,
-                $localImagePath,
-                $caption,
-                (string)$event->id
-            );
+            Log::info('Posting event to Instagram during creation', [
+                'event_id' => $event->id,
+                'local_path' => $localImagePath,
+            ]);
+            
+            // Upload image to ImgBB to get a public URL
+            $publicImageUrl = $this->imgbbService->uploadImage($localImagePath, 'event-' . $event->id);
+            
+            Log::info('Image uploaded to ImgBB', [
+                'event_id' => $event->id,
+                'imgbb_url' => $publicImageUrl,
+            ]);
+            
+            // Post to Instagram using global credentials
+            $response = $this->instagramService->postImage($publicImageUrl, $caption);
             
             if ($response['success']) {
                 // Save Instagram media ID and timestamp to event
@@ -200,18 +209,13 @@ class EventController extends Controller
                     'instagram_scheduled_posted' => true,
                 ]);
 
-                // Create notification for post
-                $this->notificationService->createPostNotification($event);
-
-                Log::info('Event posted to club Instagram', [
+                Log::info('Event posted to Instagram during creation', [
                     'event_id' => $event->id,
-                    'club_id' => $club->id,
                     'media_id' => $response['media_id']
                 ]);
             } else {
-                Log::warning('Club Instagram posting failed', [
+                Log::warning('Instagram posting failed during event creation', [
                     'event_id' => $event->id,
-                    'club_id' => $club->id,
                     'error' => $response['message']
                 ]);
             }
