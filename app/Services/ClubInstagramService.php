@@ -34,17 +34,28 @@ class ClubInstagramService
             // Check if club has Instagram account configured
             $instagramAccount = $club->instagramAccount;
             
+            // TEMPORARY: If no club account, use first available account
             if (!$instagramAccount) {
-                Log::warning('Club has no Instagram account configured', [
+                Log::info('Club has no Instagram account, using fallback account', [
                     'club_id' => $club->id,
                     'event_id' => $eventId,
                 ]);
                 
-                return [
-                    'success' => false,
-                    'message' => 'Instagram account not configured for this club',
-                    'media_id' => null,
-                ];
+                // Get any available Instagram account (temporary solution)
+                $instagramAccount = InstagramAccount::first();
+                
+                if (!$instagramAccount) {
+                    Log::warning('No Instagram accounts available at all', [
+                        'club_id' => $club->id,
+                        'event_id' => $eventId,
+                    ]);
+                    
+                    return [
+                        'success' => false,
+                        'message' => 'No Instagram accounts available',
+                        'media_id' => null,
+                    ];
+                }
             }
 
             // Check if token is still valid
