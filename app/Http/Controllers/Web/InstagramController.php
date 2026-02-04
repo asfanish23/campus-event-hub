@@ -25,16 +25,83 @@ class InstagramController extends Controller
     /**
      * Display Instagram management dashboard
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        // Get only events from the club admin's club
-        $events = Event::where('club_id', $user->club_id)->orderBy('created_at', 'desc')->get();
+        
+        // Start query for events
+        $query = Event::where('club_id', $user->club_id);
+        
+        // Search by event name or location
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('location', 'like', '%' . $search . '%');
+            });
+        }
+        
+        // Filter by status
+        if ($request->filled('status') && $request->get('status') !== '') {
+            $query->where('status', $request->get('status'));
+        }
+        
+        // Filter by category
+        if ($request->filled('category') && $request->get('category') !== '') {
+            $query->where('category', $request->get('category'));
+        }
+        
+        // Filter by Instagram posting status
+        if ($request->filled('instagram_status') && $request->get('instagram_status') !== '') {
+            $instagramStatus = $request->get('instagram_status');
+            if ($instagramStatus === 'posted') {
+                $query->whereNotNull('instagram_media_id');
+            } elseif ($instagramStatus === 'not_posted') {
+                $query->whereNull('instagram_media_id');
+            } elseif ($instagramStatus === 'scheduled') {
+                $query->where('instagram_auto_post', true)
+                      ->whereNotNull('instagram_scheduled_at')
+                      ->where('instagram_scheduled_posted', false);
+            }
+        }
+        
+        // Sorting
+        $sortBy = $request->get('sort_by', 'date_desc');
+        switch ($sortBy) {
+            case 'date_asc':
+                $query->orderBy('date', 'asc');
+                break;
+            case 'date_desc':
+                $query->orderBy('date', 'desc');
+                break;
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'newest':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            default:
+                $query->orderBy('date', 'desc');
+        }
+        
+        $events = $query->get();
+        
+        // Get unique categories for filter
+        $categories = Event::where('club_id', $user->club_id)
+            ->select('category')
+            ->distinct()
+            ->pluck('category');
         
         // Get Instagram credentials status
         $hasCredentials = config('services.instagram.token') && config('services.instagram.user_id');
         
-        return view('instagram.index', compact('events', 'hasCredentials'));
+        return view('instagram.index', compact('events', 'hasCredentials', 'categories'));
     }
 
     /**
@@ -94,6 +161,79 @@ class InstagramController extends Controller
                 'error' => $e->getMessage()
             ]);
             
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Schedule an event to be posted to Instagram
+     */
+    public function scheduleEvent(Request $request, Event $event)
+    {
+        // Validate input
+        $validated = $request->validate([
+            'instagram_scheduled_at' => 'required|date_format:Y-m-d\TH:i|after:now',
+        ], [
+            'instagram_scheduled_at.required' => 'Please select a date and time',
+            'instagram_scheduled_at.date_format' => 'Invalid date/time format',
+            'instagram_scheduled_at.after' => 'Scheduled time must be in the future',
+        ]);
+
+        // Validate the event has an image
+        if (!$event->event_image) {
+            return redirect()->back()->with('error', 'Event must have an image to schedule Instagram posting');
+        }
+
+        try {
+            // Convert datetime-local format to timestamp
+            $scheduledAt = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['instagram_scheduled_at']);
+
+            // Update event with scheduling info
+            $event->update([
+                'instagram_auto_post' => true,
+                'instagram_scheduled_at' => $scheduledAt,
+                'instagram_scheduled_posted' => false,
+            ]);
+
+            Log::info('Event scheduled for Instagram posting', [
+                'event_id' => $event->id,
+                'scheduled_at' => $scheduledAt,
+            ]);
+
+            return redirect()->back()->with('success', 'Event scheduled to post on Instagram at ' . $scheduledAt->format('M d, Y H:i') . '!');
+        } catch (\Exception $e) {
+            Log::error('Error scheduling Instagram post', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Cancel scheduled Instagram post
+     */
+    public function cancelScheduledPost(Event $event)
+    {
+        try {
+            $event->update([
+                'instagram_auto_post' => false,
+                'instagram_scheduled_at' => null,
+                'instagram_scheduled_posted' => false,
+            ]);
+
+            Log::info('Scheduled Instagram post cancelled', [
+                'event_id' => $event->id,
+            ]);
+
+            return redirect()->back()->with('success', 'Scheduled post cancelled!');
+        } catch (\Exception $e) {
+            Log::error('Error cancelling scheduled post', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+
             return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
         }
     }

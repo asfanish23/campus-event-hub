@@ -91,6 +91,8 @@ Route::middleware('auth')->group(function () {
     // Instagram management routes
     Route::get('/instagram', [InstagramController::class, 'index'])->name('instagram.index');
     Route::post('/instagram/post-event/{event}', [InstagramController::class, 'postEvent'])->name('instagram.post-event');
+    Route::post('/instagram/schedule-event/{event}', [InstagramController::class, 'scheduleEvent'])->name('instagram.schedule-event');
+    Route::post('/instagram/cancel-scheduled/{event}', [InstagramController::class, 'cancelScheduledPost'])->name('instagram.cancel-scheduled');
     Route::get('/instagram/settings', [InstagramController::class, 'settings'])->name('instagram.settings');
     Route::get('/instagram/test', [InstagramController::class, 'testApi'])->name('instagram.test');
 
