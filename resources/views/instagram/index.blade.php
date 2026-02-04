@@ -297,11 +297,21 @@
                                                         </button>
                                                     </form>
                                                 @else
-                                                    <!-- Repost Button for Already Posted -->
-                                                    <button onclick="openRepostModal({{ $event->id }})" 
-                                                            class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                            🔄 Repost
-                                                    </button>
+                                                    <!-- Repost Options for Already Posted -->
+                                                    <div class="space-y-2">
+                                                        <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="w-full">
+                                                            @csrf
+                                                            <button type="submit" 
+                                                                    class="w-full bg-gradient-to-r from-pink-600 to-orange-500 hover:from-pink-700 hover:to-orange-600 text-white font-semibold py-2 px-4 rounded-lg transition"
+                                                                    onclick="return confirm('Repost to Instagram now?')">
+                                                                🔄 Repost Now
+                                                            </button>
+                                                        </form>
+                                                        <button onclick="openRepostModal({{ $event->id }})" 
+                                                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                                                📅 Schedule Repost
+                                                        </button>
+                                                    </div>
                                                 @endif
                                             @elseif(!$event->event_image)
                                                 <button disabled class="w-full bg-gray-300 text-gray-600 font-semibold py-2 px-4 rounded-lg cursor-not-allowed">
