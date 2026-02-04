@@ -9,6 +9,17 @@ use Illuminate\Support\Collection;
 class ContentBasedFilteringService
 {
     /**
+     * Check if event is upcoming
+     * Handles both Carbon and string date formats
+     * Uses Carbon comparison to avoid date format issues
+     */
+    private function isEventUpcoming(Event $event): bool
+    {
+        $eventDate = is_string($event->date) ? \Carbon\Carbon::parse($event->date) : $event->date;
+        return $eventDate->isToday() || $eventDate->isFuture();
+    }
+
+    /**
      * Get event features as a vector
      * Features include: category, club_id, and other attributes
      */
@@ -20,7 +31,7 @@ class ContentBasedFilteringService
             'location' => $event->location,
             'status' => $event->status,
             // Temporal features
-            'is_upcoming' => $event->date > now()->toDateString() ? 1 : 0,
+            'is_upcoming' => $this->isEventUpcoming($event) ? 1 : 0,
         ];
     }
 
@@ -124,17 +135,23 @@ class ContentBasedFilteringService
      */
     public function getRecommendations(User $user, int $limit = 10): Collection
     {
-        // Get events user has already liked
-        $likedEventIds = $user->likedEvents()->pluck('event_id')->toArray();
+        // Get events user has already liked (fetch once)
+        $likedEventIds = $user->likedEvents()->pluck('id')->toArray();
+
+        // Get events user has attended
+        $attendedEventIds = $user->studentEventRegistrations()->pluck('event_id')->toArray();
 
         // Get events user hasn't liked or attended (exclude completed events)
-        $availableEvents = Event::whereNotIn('id', $likedEventIds)
-            ->where('status', '!=', 'Completed')
-            ->where('date', '>=', now()->toDateString())
+        $availableEvents = Event::whereNotIn('id', array_merge($likedEventIds, $attendedEventIds))
+            ->whereRaw("LOWER(status) != ?", ['completed'])
+            ->whereDate('date', '>=', now())
             ->get();
 
         // Build user profile from likes
         $userProfile = $this->buildUserProfile($user);
+
+        // Fetch all liked events once (for similarity calculation)
+        $likedEvents = $user->likedEvents()->get();
 
         // Score each event
         $scoredEvents = [];
@@ -148,7 +165,6 @@ class ContentBasedFilteringService
                 $similarity = 0.5;
             } else {
                 // Calculate average similarity to liked events
-                $likedEvents = $user->likedEvents()->get();
                 $similarities = [];
 
                 foreach ($likedEvents as $likedEvent) {
@@ -182,8 +198,8 @@ class ContentBasedFilteringService
     public function getSimilarEvents(Event $event, int $limit = 5): Collection
     {
         $allEvents = Event::where('id', '!=', $event->id)
-            ->where('status', '!=', 'Completed')
-            ->where('date', '>=', now()->toDateString())
+            ->whereRaw("LOWER(status) != ?", ['completed'])
+            ->whereDate('date', '>=', now())
             ->get();
 
         $scoredEvents = [];
