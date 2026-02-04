@@ -48,6 +48,7 @@ $account = InstagramAccount::create([
     'club_id' => $club->id,
     'instagram_username' => 'setup_account',
     'instagram_user_id' => $businessAccountId,
+    'instagram_business_id' => $businessAccountId, // Same as user ID for business account
     'access_token' => $accessToken,
     'token_expires_at' => now()->addYears(5), // Set to 5 years in future
     'is_valid' => true,
