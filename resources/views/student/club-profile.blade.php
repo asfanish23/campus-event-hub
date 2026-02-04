@@ -73,7 +73,7 @@
                 </a>
 
                 <!-- Club Header -->
-                <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+                <div class="bg-white rounded-xl shadow-md mb-8">
                     {{-- Club Banner/Image --}}
                     <div class="relative h-64 bg-gradient-to-br from-purple-400 to-purple-600 overflow-hidden">
                         @if($club->background_photo)
@@ -84,8 +84,8 @@
                     </div>
 
                     {{-- Club Info --}}
-                    <div class="px-8 pb-8">
-                        <div class="flex gap-6 -mt-20 mb-6 items-end">
+                    <div class="px-8 pb-8 overflow-visible">
+                        <div class="flex gap-6 -mt-20 mb-6 items-end relative z-10">
                             {{-- Club Profile Picture --}}
                             <div class="flex-shrink-0">
                                 @if($club->profile_photo)
