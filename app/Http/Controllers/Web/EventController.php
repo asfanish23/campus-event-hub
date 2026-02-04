@@ -104,8 +104,13 @@ class EventController extends Controller
         $validated['club_id'] = $user->club_id;
 
         if ($request->hasFile('event_image')) {
-            $imagePath = $request->file('event_image')->store('event-images', 'public');
-            $validated['event_image'] = $imagePath;
+            try {
+                $imagePath = $request->file('event_image')->store('event-images', 'public');
+                $validated['event_image'] = $imagePath;
+            } catch (\Exception $e) {
+                \Log::error('Event image upload error: ' . $e->getMessage());
+                return back()->withErrors(['event_image' => 'Failed to upload image: ' . $e->getMessage()]);
+            }
         }
 
         $event = Event::create($validated);
