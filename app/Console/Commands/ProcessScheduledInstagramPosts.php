@@ -12,7 +12,7 @@ class ProcessScheduledInstagramPosts extends Command
      *
      * @var string
      */
-    protected $signature = 'instagram:process-scheduled-posts {--verbose}';
+    protected $signature = 'instagram:process-scheduled-posts';
 
     /**
      * The console command description.
@@ -40,7 +40,7 @@ class ProcessScheduledInstagramPosts extends Command
      */
     public function handle()
     {
-        $verbose = $this->option('verbose');
+        $verbose = $this->getOutput()->isVerbose();
 
         $this->info('🔄 Starting scheduled Instagram posts processing...');
 

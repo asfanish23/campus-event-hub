@@ -12,7 +12,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Process scheduled Instagram posts every 5 minutes
+        $schedule->command('instagram:process-scheduled-posts')
+                 ->everyFiveMinutes()
+                 ->withoutOverlapping()
+                 ->onOneServer();
     }
 
     /**
