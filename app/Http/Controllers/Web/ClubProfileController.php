@@ -9,11 +9,31 @@ use Illuminate\Support\Facades\Auth;
 
 class ClubProfileController extends Controller
 {
-    public function show()
+    public function show(Request $request)
     {
         $user = Auth::user();
         $club = Club::find($user->club_id) ?? new Club();
-        return view('club-profile.show', compact('club'));
+        
+        // Get club events
+        $query = $club->events();
+        
+        // Filter by year if provided
+        if ($request->year) {
+            $query->whereYear('date', $request->year);
+        }
+        
+        $events = $query->orderBy('date', 'desc')->get();
+        
+        // Get all available years from club events
+        $years = $club->events()
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+        
+        $selectedYear = $request->year;
+        
+        return view('club-profile.show', compact('club', 'events', 'years', 'selectedYear'));
     }
 
     public function edit()

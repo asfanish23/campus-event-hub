@@ -239,8 +239,140 @@
                         </div>
                     @endif
                 </div>
+
+                <!-- Club Events Section -->
+                <div class="bg-white rounded-lg shadow p-6 mt-8">
+                    <h3 class="text-lg font-bold text-gray-800 mb-6">📋 Club Events</h3>
+                    
+                    <!-- Controls Row -->
+                    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                        <!-- Search Input -->
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            placeholder="🔍 Search events..." 
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                        
+                        <!-- Year Filter -->
+                        <select 
+                            id="yearSelect" 
+                            class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        >
+                            <option value="">All Years</option>
+                            @foreach($years as $year)
+                                <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>
+                                    {{ $year }}
+                                </option>
+                            @endforeach
+                        </select>
+                        
+                        <!-- Clear Button -->
+                        <button 
+                            id="clearFilters" 
+                            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold"
+                        >
+                            Clear
+                        </button>
+                    </div>
+
+                    <!-- Events Grid -->
+                    @if($events->count() > 0)
+                        <div id="eventsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            @foreach($events as $event)
+                                @php
+                                    $eventYear = $event->date->format('Y');
+                                    $eventMonth = $event->date->format('M d, Y');
+                                    $eventTime = $event->date->format('H:i');
+                                @endphp
+                                <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition event-card" data-name="{{ strtolower($event->name) }}" data-year="{{ $eventYear }}">
+                                    @if($event->featured_image)
+                                        <img src="{{ asset('storage/' . $event->featured_image) }}" alt="{{ $event->name }}" class="w-full h-40 object-cover">
+                                    @else
+                                        <div class="w-full h-40 bg-gradient-to-br from-purple-300 to-purple-500 flex items-center justify-center text-4xl">
+                                            📅
+                                        </div>
+                                    @endif
+                                    
+                                    <div class="p-4">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <h4 class="font-bold text-gray-800 flex-1 text-sm">{{ $event->name }}</h4>
+                                            @if($event->instagram_posted_at)
+                                                <span class="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded">📷 Posted</span>
+                                            @endif
+                                        </div>
+                                        
+                                        <p class="text-xs text-gray-600 mb-3">{{ Str::limit($event->description, 80) }}</p>
+                                        
+                                        <div class="space-y-1 text-xs text-gray-600 mb-4">
+                                            <p>📅 {{ $eventMonth }}</p>
+                                            <p>⏰ {{ $eventTime }}</p>
+                                            <p>📍 {{ $event->venue ?? 'TBA' }}</p>
+                                        </div>
+                                        
+                                        <a href="{{ route('event.show', $event->id) }}" class="text-purple-600 hover:text-purple-800 text-sm font-semibold">
+                                            View Details →
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <!-- No Results Message -->
+                        <div id="noResults" class="text-center py-8 text-gray-600 hidden">
+                            <p class="text-lg font-semibold">No events found</p>
+                            <p class="text-sm">Try adjusting your filters</p>
+                        </div>
+                    @else
+                        <div class="text-center py-12 text-gray-500">
+                            <p class="text-lg font-semibold mb-2">📭 No Events Yet</p>
+                            <p class="text-sm">This club hasn't created any events yet.</p>
+                        </div>
+                    @endif
+                </div>
             </div>
         </main>
     </div>
+
+    <script>
+        // Event filtering
+        const searchInput = document.getElementById('searchInput');
+        const yearSelect = document.getElementById('yearSelect');
+        const clearFilters = document.getElementById('clearFilters');
+        const eventCards = document.querySelectorAll('.event-card');
+        const noResults = document.getElementById('noResults');
+        const eventsContainer = document.getElementById('eventsContainer');
+
+        function filterEvents() {
+            const searchTerm = (searchInput?.value || '').toLowerCase();
+            const year = yearSelect?.value;
+            let visibleCount = 0;
+
+            eventCards.forEach(card => {
+                const eventName = (card.dataset.name || '').toLowerCase();
+                const eventYear = card.dataset.year;
+                
+                const matchesSearch = eventName.includes(searchTerm);
+                const matchesYear = !year || eventYear === year;
+                const isVisible = matchesSearch && matchesYear;
+
+                card.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) visibleCount++;
+            });
+
+            if (noResults) {
+                noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        }
+
+        searchInput?.addEventListener('input', filterEvents);
+        yearSelect?.addEventListener('change', filterEvents);
+
+        clearFilters?.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (yearSelect) yearSelect.value = '';
+            filterEvents();
+        });
+    </script>
 </body>
 </html>
