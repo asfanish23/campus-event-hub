@@ -139,7 +139,7 @@ class ContentBasedFilteringService
         $likedEventIds = $user->likedEvents()->pluck('events.id')->toArray();
 
         // Get events user has attended
-        $attendedEventIds = $user->studentEventRegistrations()->pluck('event_id')->toArray();
+        $attendedEventIds = $user->registrations()->pluck('event_id')->toArray();
 
         // Get events user hasn't liked or attended (exclude completed events)
         $availableEvents = Event::whereNotIn('id', array_merge($likedEventIds, $attendedEventIds))
