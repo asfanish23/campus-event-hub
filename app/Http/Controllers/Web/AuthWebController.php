@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Auth\Events\PasswordReset;
+
+class AuthWebController extends Controller
+{
+    public function showLogin()
+    {
+        return view('auth.login');
+    }
+
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+            'role' => 'required|in:admin,super_admin,student',
+        ]);
+
+        \Log::info('Login Attempt', ['email' => $request->email, 'role' => $request->role]);
+
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            \Log::warning('Login Failed - Invalid Credentials', ['email' => $request->email]);
+            return back()->withErrors([
+                'email' => 'Invalid credentials',
+            ])->withInput();
+        }
+
+        $user = Auth::user();
+        $user->refresh();
+
+        \Log::info('User Authenticated', ['user_id' => $user->id, 'user_role' => $user->role, 'requested_role' => $request->role]);
+
+        if ($user->role !== $request->role) {
+            Auth::logout();
+            \Log::warning('Login Failed - Role Mismatch', ['user_id' => $user->id, 'user_role' => $user->role, 'requested_role' => $request->role]);
+            return back()->withErrors([
+                'role' => 'Role does not match this account',
+            ])->withInput();
+        }
+
+        // Check if admin is approved
+        if ($user->role === 'admin' && $user->admin_status === 'pending') {
+            Auth::logout();
+            \Log::warning('Login Failed - Admin Pending', ['user_id' => $user->id]);
+            return back()->withErrors([
+                'email' => 'Your application is pending approval. Please wait for admin to approve your request.',
+            ])->withInput();
+        }
+
+        if ($user->role === 'admin' && $user->admin_status === 'rejected') {
+            Auth::logout();
+            \Log::warning('Login Failed - Admin Rejected', ['user_id' => $user->id]);
+            return back()->withErrors([
+                'email' => 'Your application has been rejected. Please contact super admin for more details.',
+            ])->withInput();
+        }
+
+        \Log::info('Login Success - About to Redirect', ['user_id' => $user->id, 'role' => $user->role]);
+
+        // Regenerate session ID for security
+        $request->session()->regenerate();
+
+        // Redirect based on role
+        if ($user->role === 'student') {
+            \Log::info('Redirecting Student', ['user_id' => $user->id, 'session_id' => $request->session()->getId()]);
+            return redirect()->intended(route('student.dashboard'));
+        }
+
+        if ($user->role === 'super_admin') {
+            \Log::info('Redirecting Super Admin', ['user_id' => $user->id, 'session_id' => $request->session()->getId()]);
+            return redirect()->intended(route('super-admin.dashboard'));
+        }
+
+        // Club admin (admin role)
+        \Log::info('Redirecting Club Admin', ['user_id' => $user->id, 'session_id' => $request->session()->getId()]);
+        return redirect()->intended(route('dashboard'));
+    }
+
+    public function logout()
+    {
+        Auth::logout();
+        return redirect()->route('login');
+    }
+
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        // Allow reset for both admin and student roles
+        $user = User::where('email', $request->email)
+            ->whereIn('role', ['admin', 'super_admin', 'student'])
+            ->first();
+
+        if (!$user) {
+            return back()->withErrors([
+                'email' => 'We could not find an account with that email address.',
+            ]);
+        }
+
+        try {
+            // Send password reset link
+            $status = Password::sendResetLink(
+                $request->only('email')
+            );
+
+            return back()->with('status', trans($status));
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'email' => 'Unable to send reset link. Please contact support or try again later.',
+            ]);
+        }
+    }
+
+    public function showResetPassword(Request $request, $token)
+    {
+        return view('auth.reset-password', ['request' => $request, 'token' => $token]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => bcrypt($password)
+                ])->save();
+
+                $user->tokens()->delete();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')->with('status', trans($status));
+        }
+
+        return back()->withErrors(['email' => trans($status)]);
+    }
+}
