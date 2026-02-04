@@ -109,8 +109,14 @@ class InstagramController extends Controller
      */
     public function postEvent(Request $request, Event $event)
     {
+        Log::info('postEvent() method called', [
+            'event_id' => $event->id,
+            'event_name' => $event->name,
+        ]);
+        
         // Validate the event has an image
         if (!$event->event_image) {
+            Log::warning('Event has no image', ['event_id' => $event->id]);
             return redirect()->back()->with('error', 'Event must have an image to post to Instagram');
         }
 
@@ -121,6 +127,7 @@ class InstagramController extends Controller
             Log::info('Preparing to post event to Instagram', [
                 'event_id' => $event->id,
                 'local_path' => $localImagePath,
+                'file_exists' => file_exists($localImagePath),
             ]);
 
             // Upload image to ImgBB to get a public URL
