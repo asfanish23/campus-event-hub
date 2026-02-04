@@ -7,9 +7,22 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 use App\Models\InstagramAccount;
 use App\Models\Club;
 
-// Get credentials from .env
-$accessToken = env('INSTAGRAM_ACCESS_TOKEN');
-$businessAccountId = env('INSTAGRAM_BUSINESS_ACCOUNT_ID');
+// Load .env file directly
+$envPath = __DIR__ . '/.env';
+$envLines = file($envPath);
+$env = [];
+
+foreach($envLines as $line) {
+    $line = trim($line);
+    if($line && strpos($line, '=') !== false && strpos($line, '#') !== 0) {
+        [$key, $value] = explode('=', $line, 2);
+        $env[trim($key)] = trim($value);
+    }
+}
+
+// Get credentials from loaded .env
+$accessToken = $env['INSTAGRAM_ACCESS_TOKEN'] ?? null;
+$businessAccountId = $env['INSTAGRAM_BUSINESS_ACCOUNT_ID'] ?? null;
 
 if(!$accessToken || !$businessAccountId) {
     echo "❌ Missing INSTAGRAM_ACCESS_TOKEN or INSTAGRAM_BUSINESS_ACCOUNT_ID in .env\n";
