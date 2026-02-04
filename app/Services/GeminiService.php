@@ -10,15 +10,18 @@ class GeminiService
     protected $apiKey;
     
     /**
-     * Menggunakan model v1beta gemini-2.5-flash untuk kepantasan 
-     * dan kualiti teks yang lebih baik pada tahun 2026.
+     * Menggunakan Gemini 2.5 Flash sebagai default, fallback ke Lite jika rate limit
      */
-    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    protected $primaryModel = 'gemini-2.5-flash';
+    protected $fallbackModel = 'gemini-2.5-flash-lite';
+    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
     protected $maxRetries = 3;
+    protected $currentModel;
 
     public function __construct()
     {
         $this->apiKey = config('services.gemini.api_key');
+        $this->currentModel = $this->primaryModel;
     }
 
     public function generateEventDescription($eventName, $category, $location, $attendees = null, $extraDetails = null)
@@ -30,13 +33,13 @@ class GeminiService
     public function tweakDescription($currentText, $style)
     {
         $instructions = [
-            'official' => 'Rewrite this event description in a formal, structured announcement format. Include: Assalamualaikum greeting, organized sections with emojis for visual hierarchy (not scattered), clear bullet points for key info (tarikh, masa, tempat), professional tone without slang, and contact details. Format like official university announcements.',
-            'fun' => 'Rewrite this event description in a fun, energetic style while keeping the structured format. Use Malaysian student slang (Manglish) with words like "mantap", "gempak", "onsz". Add more casual emojis throughout. Keep it organized with sections but make it sound exciting and playful for students.',
+            'funnier' => 'Make this event description even funnier with more Malaysian student slang. Use words like "mantap", "gempak", or "onsz".',
+            'professional' => 'Rewrite this in a professional and formal tone suitable for a university official announcement.',
             'shorter' => 'Summarize this into a very short and punchy social media caption (max 50 words).'
         ];
 
-        $selectedInstruction = $instructions[$style] ?? $instructions['official'];
-        $prompt = "Current Description: $currentText\n\nInstruction: $selectedInstruction\n\nEnsure the response is a complete paragraph and properly formatted.";
+        $selectedInstruction = $instructions[$style] ?? $instructions['funnier'];
+        $prompt = "Current Description: $currentText\n\nInstruction: $selectedInstruction\n\nEnsure the response is a complete paragraph.";
 
         return $this->callGemini($prompt);
     }
@@ -56,9 +59,11 @@ class GeminiService
                     sleep($delay);
                 }
 
+                $modelUrl = $this->baseUrl . '/' . $this->currentModel . ':generateContent';
+                
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json',
-                ])->timeout(30)->post($this->baseUrl . '?key=' . $this->apiKey, [
+                ])->timeout(30)->post($modelUrl . '?key=' . $this->apiKey, [
                     'contents' => [
                         ['parts' => [['text' => $prompt]]]
                     ],
@@ -69,12 +74,20 @@ class GeminiService
                     ]
                 ]);
 
+                // Jika rate limited, tukar ke Lite model
+                if ($response->status() === 429 && $this->currentModel === $this->primaryModel) {
+                    Log::warning('Rate limit hit on ' . $this->primaryModel . ', switching to ' . $this->fallbackModel);
+                    $this->currentModel = $this->fallbackModel;
+                    continue;
+                }
+
                 if ($response->status() !== 429) break;
             }
 
             if ($response->failed()) {
                 Log::error('Gemini API Error Detail', [
                     'status' => $response->status(),
+                    'model' => $this->currentModel,
                     'response' => $response->json()
                 ]);
 
@@ -88,7 +101,7 @@ class GeminiService
             $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
             return $text 
-                ? ['success' => true, 'text' => trim($text)] 
+                ? ['success' => true, 'text' => trim($text), 'model' => $this->currentModel] 
                 : ['success' => false, 'error' => 'AI returned empty response'];
 
         } catch (\Exception $e) {
@@ -99,20 +112,20 @@ class GeminiService
 
     private function buildPrompt($eventName, $category, $location, $attendees, $extraDetails = null)
     {
-        $prompt = "You are a pro event announcement writer for a campus club. ";
-        $prompt .= "Task: Write a formal, structured event announcement for: '$eventName'. ";
-        $prompt .= "Format: Use official announcement style with Assalamualaikum greeting, clear sections (tarikh, masa, tempat, info), organized bullet points, and emojis for visual hierarchy. ";
-        $prompt .= "Tone: Professional and respectful, suitable for university official announcements. Keep it organized and easy to read. ";
-        $prompt .= "Style: NO Malaysian student slang, formal tone, clear contact details format. Include a proper closing. DO NOT stop mid-sentence.";
+        $prompt = "You are a pro campus event promoter for 'Campus Event Hub'. ";
+        $prompt .= "Task: Write a complete, catchy, and energetic event description for: '$eventName'. ";
+        $prompt .= "Context: Category is $category and it will be at $location. ";
+        $prompt .= "Tone: Mix of English and casual Malaysian student slang (Manglish). Make it sound very 'padu' and exciting. ";
+        $prompt .= "Requirement: Use emojis, include a clear 'Call to Action' at the end, and DO NOT stop mid-sentence.";
         
         if ($attendees) {
             $prompt .= $attendees > 100 
-                ? " Highlight that this is a large-scale event with many opportunities." 
-                : " Highlight the limited and exclusive nature of this event.";
+                ? " Highlight that this is a massive event you don't want to miss!" 
+                : " Highlight that slots are very limited and exclusive!";
         }
 
         if ($extraDetails) {
-            $prompt .= " Additional details to highlight: $extraDetails.";
+            $prompt .= " Additional special details to highlight: $extraDetails.";
         }
 
         return $prompt;
