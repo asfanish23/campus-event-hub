@@ -100,6 +100,13 @@
                         </ul>
                     </div>
                 @endif
+                
+                @if(!$club || !$club->id)
+                    <div class="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
+                        <h3 class="font-semibold">⚠️ Warning: Club data not found</h3>
+                        <p>Club ID: {{ $club->id ?? 'NULL' }}</p>
+                    </div>
+                @endif
 
                 <!-- Background Photo Preview (Full Width) -->
                 <div class="mb-8 -mx-8">
@@ -374,7 +381,7 @@
 
                         <!-- Action Buttons -->
                         <div class="flex gap-4">
-                            <button type="submit" id="saveBtn" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+                            <button type="button" id="saveBtn" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
                                 Save Changes
                             </button>
                             <a href="{{ route('club-profile.show') }}" class="px-8 py-3 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition font-semibold">
@@ -582,28 +589,57 @@
             });
         });
 
-        // Form submission handling
-        const mainForm = document.querySelector('form[action*="club-profile.update"]');
-        const saveBtn = document.getElementById('saveBtn');
-        
-        if (mainForm && saveBtn) {
-            console.log('✅ Form and button found');
+        // Auto-scroll to validation errors if any
+        document.addEventListener('DOMContentLoaded', function() {
+            const errorDiv = document.querySelector('[class*="bg-red-100"]');
+            if (errorDiv) {
+                console.log('Found validation errors, scrolling to top');
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            // Form submission handling
+            const mainForm = document.querySelector('form[action*="club-profile.update"]');
+            const saveBtn = document.getElementById('saveBtn');
             
-            mainForm.addEventListener('submit', function(e) {
-                console.log('✅ Form submit event triggered');
-                saveBtn.disabled = true;
-                saveBtn.textContent = '⏳ Saving...';
-                // Form will submit naturally
-            });
-            
-            saveBtn.addEventListener('click', function(e) {
-                console.log('✅ Save button clicked');
-            });
-        } else {
-            console.log('❌ Form or button not found');
-            console.log('Form:', mainForm);
-            console.log('SaveBtn:', saveBtn);
-        }
+            if (mainForm && saveBtn) {
+                console.log('✅ Form and button found');
+                
+                saveBtn.addEventListener('click', function(e) {
+                    console.log('✅ Save button clicked');
+                    
+                    // Get all form fields
+                    const nameInput = document.querySelector('input[name="name"]');
+                    const emailInput = document.querySelector('input[name="email"]');
+                    const categoryInput = document.querySelector('select[name="category"]');
+                    const descInput = document.querySelector('textarea[name="description"]');
+                    const presidentInput = document.querySelector('input[name="president_name"]');
+                    const contactInput = document.querySelector('input[name="president_contact"]');
+                    
+                    // Log values for debugging
+                    console.log('Form values:');
+                    console.log('  name:', nameInput?.value);
+                    console.log('  email:', emailInput?.value);
+                    console.log('  category:', categoryInput?.value);
+                    console.log('  description:', descInput?.value);
+                    console.log('  president_name:', presidentInput?.value);
+                    console.log('  president_contact:', contactInput?.value);
+                    
+                    // Change button to show loading state
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = '⏳ Saving...';
+                    
+                    // Submit the form after a small delay
+                    setTimeout(() => {
+                        console.log('Submitting form...');
+                        mainForm.submit();
+                    }, 300);
+                });
+            } else {
+                console.log('❌ Form or button not found');
+                console.log('Form:', mainForm);
+                console.log('SaveBtn:', saveBtn);
+            }
+        });
     </script>
 </body>
 </html>
