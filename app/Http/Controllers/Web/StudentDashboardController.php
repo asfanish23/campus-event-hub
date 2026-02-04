@@ -180,14 +180,26 @@ class StudentDashboardController extends Controller
         ]);
     }
 
-    public function archive()
+    public function archive(Request $request)
     {
         $user = Auth::user();
         
         // Get all events with dates in the past (completed events based on date, not status field)
-        $completedEvents = Event::where('date', '<', now()->startOfDay())
-            ->orderBy('date', 'desc')
-            ->get();
+        $query = Event::where('date', '<', now()->startOfDay());
+        
+        // Filter by year if provided
+        if ($request->has('year') && $request->year) {
+            $query->whereYear('date', $request->year);
+        }
+        
+        $completedEvents = $query->orderBy('date', 'desc')->get();
+        
+        // Get all years from completed events for the filter dropdown
+        $years = Event::where('date', '<', now()->startOfDay())
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
         
         // Get registered events
         $registeredEventIds = StudentEventRegistration::where('user_id', $user->id)
@@ -208,6 +220,8 @@ class StudentDashboardController extends Controller
             'registeredEventIds' => $registeredEventIds,
             'likedEventIds' => $likedEventIds,
             'clubs' => $clubs,
+            'years' => $years,
+            'selectedYear' => $request->year,
         ]);
     }
 

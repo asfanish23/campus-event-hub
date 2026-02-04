@@ -98,6 +98,15 @@
                                 />
                             </div>
 
+                            {{-- Year Filter --}}
+                            <select id="yearSelect"
+                                    class="h-10 w-full sm:w-[150px] px-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+                                <option value="">All Years</option>
+                                @foreach($years as $year)
+                                    <option value="{{ $year }}" @if($selectedYear == $year) selected @endif>{{ $year }}</option>
+                                @endforeach
+                            </select>
+
                             {{-- Sort --}}
                             <select id="sortSelect"
                                     class="h-10 w-full sm:w-[190px] px-3 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
@@ -120,6 +129,7 @@
                                     $dateIso = optional($event->date)->format('Y-m-d') ?? '';
                                     $timeIso = optional($event->start_time)->format('H:i') ?? '';
                                     $dateTimeIso = ($dateIso && $timeIso) ? ($dateIso.'T'.$timeIso) : $dateIso;
+                                    $yearIso = optional($event->date)->format('Y') ?? '';
                                 @endphp
 
                                 <div
@@ -128,6 +138,7 @@
                                     data-name="{{ strtolower($eventName) }}"
                                     data-date="{{ $dateIso }}"
                                     data-datetime="{{ $dateTimeIso }}"
+                                    data-year="{{ $yearIso }}"
                                 >
                                     <div class="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-purple-300 transition cursor-pointer h-full flex flex-col">
                                         {{-- Poster --}}
@@ -216,6 +227,7 @@
         // Filters + Sort
         const searchInput = document.getElementById('eventSearch');
         const sortSelect = document.getElementById('sortSelect');
+        const yearSelect = document.getElementById('yearSelect');
         const clearBtn = document.getElementById('clearFilters');
 
         const grid = document.getElementById('eventsGrid');
@@ -228,12 +240,16 @@
         function applyFiltersAndSort() {
             const q = normalize(searchInput?.value);
             const sort = normalize(sortSelect?.value);
+            const year = yearSelect?.value;
 
             let visible = cards.filter(card => {
                 const name = normalize(card.dataset.name);
+                const cardYear = card.dataset.year;
                 const matchSearch = !q || name.includes(q);
-                card.classList.toggle('hidden', !matchSearch);
-                return matchSearch;
+                const matchYear = !year || cardYear === year;
+                const matches = matchSearch && matchYear;
+                card.classList.toggle('hidden', !matches);
+                return matches;
             });
 
             visible.sort((a, b) => {
@@ -259,7 +275,7 @@
 
         applyFiltersAndSort();
 
-        [searchInput, sortSelect].forEach(el => {
+        [searchInput, sortSelect, yearSelect].forEach(el => {
             if (!el) return;
             el.addEventListener('input', applyFiltersAndSort);
             el.addEventListener('change', applyFiltersAndSort);
@@ -269,6 +285,7 @@
             clearBtn.addEventListener('click', () => {
                 if (searchInput) searchInput.value = '';
                 if (sortSelect) sortSelect.value = 'date_desc';
+                if (yearSelect) yearSelect.value = '';
                 applyFiltersAndSort();
             });
         }
