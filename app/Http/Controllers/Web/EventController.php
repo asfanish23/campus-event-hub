@@ -124,7 +124,7 @@ class EventController extends Controller
         }
 
         // Post event image to Instagram if available
-        if ($validated['event_image']) {
+        if (!empty($validated['event_image'])) {
             try {
                 // Get the club associated with the current user
                 // Assuming the user has a club or is part of a club
