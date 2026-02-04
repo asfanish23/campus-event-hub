@@ -49,7 +49,7 @@ $account = InstagramAccount::create([
     'instagram_username' => 'setup_account',
     'instagram_user_id' => $businessAccountId,
     'access_token' => $accessToken,
-    'token_expires_at' => now()->addYears(100), // Set far future so it doesn't expire
+    'token_expires_at' => now()->addYears(5), // Set to 5 years in future
     'is_valid' => true,
 ]);
 
