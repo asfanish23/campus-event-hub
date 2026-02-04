@@ -10,13 +10,16 @@ class ScheduledInstagramPostService
 {
     private ClubInstagramService $clubInstagramService;
     private InstagramNotificationService $notificationService;
+    private ImgBBService $imgbbService;
 
     public function __construct(
         ClubInstagramService $clubInstagramService,
-        InstagramNotificationService $notificationService
+        InstagramNotificationService $notificationService,
+        ImgBBService $imgbbService
     ) {
         $this->clubInstagramService = $clubInstagramService;
         $this->notificationService = $notificationService;
+        $this->imgbbService = $imgbbService;
     }
 
     /**
@@ -279,7 +282,7 @@ class ScheduledInstagramPostService
                       $event->description;
 
             // Upload image to ImgBB to get a public URL
-            $publicImageUrl = $this->clubInstagramService->imgbbService->uploadImage($localImagePath, 'event-repost-scheduled-' . $event->id);
+            $publicImageUrl = $this->imgbbService->uploadImage($localImagePath, 'event-repost-scheduled-' . $event->id);
 
             // Post to Instagram using the global service
             $response = app(\App\Services\InstagramService::class)->postImage($publicImageUrl, $caption);
