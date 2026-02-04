@@ -94,9 +94,9 @@ class EventController extends Controller
             'category' => 'required|string|max:255',
             'status' => 'required|in:Upcoming,Currently Running,Completed',
             'expected_attendees' => 'nullable|integer|min:0',
-            'event_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'event_image' => 'nullable|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'event_photos' => 'nullable|array',
-            'event_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
+            'event_photos.*' => 'mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
         // Assign club_id from authenticated user
