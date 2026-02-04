@@ -297,19 +297,21 @@
                                                         </button>
                                                     </form>
                                                 @else
-                                                    <!-- Repost Options for Already Posted -->
-                                                    <div class="space-y-2">
-                                                        <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="w-full">
+                                                    <!-- Repost Options for Already Posted - Icon Style -->
+                                                    <div class="flex gap-2 justify-center">
+                                                        <form action="{{ route('instagram.repost-now', $event) }}" method="POST">
                                                             @csrf
                                                             <button type="submit" 
-                                                                    class="w-full bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                                                                    class="bg-pink-600 hover:bg-pink-700 text-white p-2 rounded-lg transition"
+                                                                    title="Repost Now"
                                                                     onclick="return confirm('Repost to Instagram now?')">
-                                                                🔄 Repost Now
+                                                                🔄
                                                             </button>
                                                         </form>
                                                         <button onclick="openRepostModal({{ $event->id }})" 
-                                                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                                📅 Schedule Repost
+                                                                class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition"
+                                                                title="Schedule Repost">
+                                                                📅
                                                         </button>
                                                     </div>
                                                 @endif
