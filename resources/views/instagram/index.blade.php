@@ -297,21 +297,9 @@
                                                         </button>
                                                     </form>
                                                 @else
-                                                    <!-- Repost Options for Already Posted -->
-                                                    <div class="flex gap-2">
-                                                        <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="flex-1">
-                                                            @csrf
-                                                            <button type="submit" 
-                                                                    class="w-full bg-gradient-to-r from-pink-600 to-orange-500 hover:from-pink-700 hover:to-orange-600 text-white font-semibold py-2 px-4 rounded-lg transition"
-                                                                    onclick="return confirm('Repost to Instagram now?')">
-                                                                🔄 Repost Now
-                                                            </button>
-                                                        </form>
-                                                        <button onclick="openRepostModal({{ $event->id }})" 
-                                                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                                📅 Schedule Repost
-                                                        </button>
-                                                    </div>
+                                                    <button disabled class="w-full bg-gray-300 text-gray-600 font-semibold py-2 px-4 rounded-lg cursor-not-allowed">
+                                                        ✅ Already Posted
+                                                    </button>
                                                 @endif
                                             @elseif(!$event->event_image)
                                                 <button disabled class="w-full bg-gray-300 text-gray-600 font-semibold py-2 px-4 rounded-lg cursor-not-allowed">
@@ -375,40 +363,6 @@
         </div>
     </div>
 
-    <!-- Repost Modal -->
-    <div id="repostModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">🔄 Schedule Repost</h2>
-            
-            <form id="repostForm" method="POST" class="space-y-4">
-                @csrf
-                
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Date & Time</label>
-                    <input type="datetime-local" name="instagram_repost_at" required
-                           min="{{ now()->addMinutes(5)->format('Y-m-d\TH:i') }}"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent">
-                    <p class="text-xs text-gray-500 mt-2">⚠️ Minimum 5 minutes in the future</p>
-                </div>
-
-                <div class="bg-blue-50 border border-blue-200 rounded p-3">
-                    <p class="text-sm text-blue-800">
-                        💡 <strong>Tip:</strong> Reposting helps increase engagement. Schedule at peak hours for maximum reach.
-                    </p>
-                </div>
-
-                <div class="flex gap-2 pt-4">
-                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                        ✅ Schedule Repost
-                    </button>
-                    <button type="button" onclick="closeRepostModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
-                        ❌ Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script>
         function openScheduleModal(eventId) {
             const modal = document.getElementById('scheduleModal');
@@ -422,28 +376,10 @@
             document.getElementById('scheduleModal').classList.add('hidden');
         }
 
-        function openRepostModal(eventId) {
-            const modal = document.getElementById('repostModal');
-            const form = document.getElementById('repostForm');
-            form.action = '/instagram/schedule-repost/' + eventId;
-            form.method = 'POST';
-            modal.classList.remove('hidden');
-        }
-
-        function closeRepostModal() {
-            document.getElementById('repostModal').classList.add('hidden');
-        }
-
-        // Close modals when clicking outside
+        // Close modal when clicking outside
         document.getElementById('scheduleModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeScheduleModal();
-            }
-        });
-
-        document.getElementById('repostModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeRepostModal();
             }
         });
 
@@ -453,14 +389,6 @@
             const now = new Date();
             now.setMinutes(now.getMinutes() + 5);
             datetimeInput.setAttribute('min', now.toISOString().slice(0, 16));
-        }
-
-        // Set minimum datetime for repost modal
-        const repostDatetimeInput = document.querySelector('input[name="instagram_repost_at"]');
-        if (repostDatetimeInput) {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + 5);
-            repostDatetimeInput.setAttribute('min', now.toISOString().slice(0, 16));
         }
     </script>
 </body>
