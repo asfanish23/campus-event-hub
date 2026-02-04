@@ -17,15 +17,14 @@ class StudentDashboardController extends Controller
         $user = Auth::user();
         
         // Get all events with dates today or in the future (upcoming/ongoing)
+        // Display only Upcoming or Ongoing status (exclude Completed)
         $allEvents = Event::where('date', '>=', now()->startOfDay())
+            ->whereRaw("LOWER(status) IN (?, ?)", ['upcoming', 'ongoing'])
             ->orderBy('date', 'asc')
             ->get();
         
-        // Get upcoming events (limit to 6 for display)
-        $upcomingEvents = Event::where('date', '>=', now()->startOfDay())
-            ->orderBy('date', 'asc')
-            ->limit(6)
-            ->get();
+        // Use same query for upcomingEvents - no limit, show all upcoming/ongoing events
+        $upcomingEvents = $allEvents;
         
         // Get registered events
         $registeredEventIds = StudentEventRegistration::where('user_id', $user->id)
@@ -40,9 +39,9 @@ class StudentDashboardController extends Controller
         // Count registered events
         $registeredEventsCount = count($registeredEventIds);
         
-        // Get recommended events using CBF algorithm
+        // Get recommended events using CBF algorithm (increase limit for better options)
         $cbfService = new ContentBasedFilteringService();
-        $recommendedEvents = $cbfService->getRecommendations($user, 5);
+        $recommendedEvents = $cbfService->getRecommendations($user, 10);
         
         // Get all clubs for sidebar
         $clubs = Club::all();
