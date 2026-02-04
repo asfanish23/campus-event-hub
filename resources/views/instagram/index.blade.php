@@ -302,13 +302,13 @@
                                                         <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="w-full">
                                                             @csrf
                                                             <button type="submit" 
-                                                                    class="w-full bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition shadow-md"
+                                                                    class="w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition"
                                                                     onclick="return confirm('Repost to Instagram now?')">
                                                                 🔄 Repost Now
                                                             </button>
                                                         </form>
                                                         <button onclick="openRepostModal({{ $event->id }})" 
-                                                                class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition shadow-md">
+                                                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
                                                                 📅 Schedule Repost
                                                         </button>
                                                     </div>
