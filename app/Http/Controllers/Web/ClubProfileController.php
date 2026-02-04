@@ -28,6 +28,10 @@ class ClubProfileController extends Controller
         $user = Auth::user();
         $club = Club::find($user->club_id);
         
+        if (!$club) {
+            return back()->with('error', 'Club not found!');
+        }
+        
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
@@ -47,7 +51,7 @@ class ClubProfileController extends Controller
         // Handle profile photo upload
         if ($request->hasFile('profile_photo')) {
             // Delete old photo if it exists
-            if ($club && $club->profile_photo) {
+            if ($club->profile_photo) {
                 $oldPath = public_path('storage/' . $club->profile_photo);
                 if (file_exists($oldPath)) {
                     unlink($oldPath);
@@ -62,7 +66,7 @@ class ClubProfileController extends Controller
         // Handle background photo upload
         if ($request->hasFile('background_photo')) {
             // Delete old background if it exists
-            if ($club && $club->background_photo) {
+            if ($club->background_photo) {
                 $oldPath = public_path('storage/' . $club->background_photo);
                 if (file_exists($oldPath)) {
                     unlink($oldPath);
@@ -76,11 +80,7 @@ class ClubProfileController extends Controller
             $validated['background_position_v'] = 0;
         }
 
-        if ($club) {
-            $club->update($validated);
-            return back()->with('success', 'Club profile updated successfully!');
-        } else {
-            return back()->with('error', 'Club not found!');
-        }
+        $club->update($validated);
+        return back()->with('success', 'Club profile updated successfully!');
     }
 }

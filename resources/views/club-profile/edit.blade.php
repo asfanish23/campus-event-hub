@@ -374,7 +374,7 @@
 
                         <!-- Action Buttons -->
                         <div class="flex gap-4">
-                            <button type="submit" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+                            <button type="submit" id="saveBtn" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
                                 Save Changes
                             </button>
                             <a href="{{ route('club-profile.show') }}" class="px-8 py-3 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition font-semibold">
@@ -500,9 +500,12 @@
             // Setup drag and drop for background
             setupBackgroundDragAndDrop();
 
-            // Instagram OAuth auto-fetch functionality
+            // Instagram OAuth auto-fetch functionality (optional)
             const fetchBtn = document.getElementById('fetchBtn');
-            if (!fetchBtn) return; // Exit if Instagram section not found
+            if (!fetchBtn) {
+                console.log('Instagram section not found, skipping');
+                return; // Exit if Instagram section not found
+            }
 
             const tokenInput = document.getElementById('accessTokenInput');
             const submitBtn = document.getElementById('submitBtn');
@@ -578,6 +581,29 @@
                 }
             });
         });
+
+        // Form submission handling
+        const mainForm = document.querySelector('form[action*="club-profile.update"]');
+        const saveBtn = document.getElementById('saveBtn');
+        
+        if (mainForm && saveBtn) {
+            console.log('✅ Form and button found');
+            
+            mainForm.addEventListener('submit', function(e) {
+                console.log('✅ Form submit event triggered');
+                saveBtn.disabled = true;
+                saveBtn.textContent = '⏳ Saving...';
+                // Form will submit naturally
+            });
+            
+            saveBtn.addEventListener('click', function(e) {
+                console.log('✅ Save button clicked');
+            });
+        } else {
+            console.log('❌ Form or button not found');
+            console.log('Form:', mainForm);
+            console.log('SaveBtn:', saveBtn);
+        }
     </script>
 </body>
 </html>
