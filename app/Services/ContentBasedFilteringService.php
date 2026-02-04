@@ -136,7 +136,7 @@ class ContentBasedFilteringService
     public function getRecommendations(User $user, int $limit = 10): Collection
     {
         // Get events user has already liked (fetch once)
-        $likedEventIds = $user->likedEvents()->pluck('id')->toArray();
+        $likedEventIds = $user->likedEvents()->pluck('events.id')->toArray();
 
         // Get events user has attended
         $attendedEventIds = $user->studentEventRegistrations()->pluck('event_id')->toArray();
