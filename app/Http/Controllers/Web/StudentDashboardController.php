@@ -59,13 +59,27 @@ class StudentDashboardController extends Controller
         ]);
     }
 
-    public function showClub(Club $club)
+    public function showClub(Club $club, Request $request)
     {
         // Get club's events
-        $clubEvents = Event::where('club_id', $club->id)
+        $query = Event::where('club_id', $club->id)
             ->where('status', '!=', 'Completed')
-            ->orderBy('date', 'asc')
-            ->get();
+            ->orderBy('date', 'asc');
+        
+        // Filter by year if provided
+        if ($request->year) {
+            $query->whereYear('date', $request->year);
+        }
+        
+        $clubEvents = $query->get();
+        
+        // Get all available years from club events
+        $years = Event::where('club_id', $club->id)
+            ->where('status', '!=', 'Completed')
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
         
         // Get club's products (merchandise)
         $clubProducts = $club->products()->get();
@@ -73,11 +87,15 @@ class StudentDashboardController extends Controller
         // Get all clubs for sidebar
         $clubs = Club::all();
         
+        $selectedYear = $request->year;
+        
         return view('student.club-profile', [
             'club' => $club,
             'clubEvents' => $clubEvents,
             'clubProducts' => $clubProducts,
             'clubs' => $clubs,
+            'years' => $years,
+            'selectedYear' => $selectedYear,
         ]);
     }
 

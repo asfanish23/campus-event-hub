@@ -143,12 +143,47 @@
                 <!-- Events Tab -->
                 <div id="events-tab" class="tab-content">
                     <div class="bg-white rounded-xl shadow-md p-8">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Club Events</h2>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Club Events ({{ $clubEvents->count() }} total)</h2>
+                        
+                        <!-- Controls Row -->
+                        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                            <!-- Search Input -->
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                placeholder="🔍 Search events..." 
+                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                            
+                            <!-- Year Filter -->
+                            <select 
+                                id="yearSelect" 
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                            >
+                                <option value="">All Years</option>
+                                @foreach($years as $year)
+                                    <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>
+                                        {{ $year }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            
+                            <!-- Clear Button -->
+                            <button 
+                                id="clearFilters" 
+                                class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold"
+                            >
+                                Clear
+                            </button>
+                        </div>
 
                         @if($clubEvents->count() > 0)
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div id="eventsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 @foreach($clubEvents as $event)
-                                    <a href="{{ route('student.event.show', $event->id) }}" class="block">
+                                    @php
+                                        $eventYear = $event->date->format('Y');
+                                    @endphp
+                                    <a href="{{ route('student.event.show', $event->id) }}" class="block event-card" data-name="{{ strtolower($event->name) }}" data-year="{{ $eventYear }}">
                                         <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-purple-300 transition-all duration-300">
                                             {{-- Event Image --}}
                                             <div class="relative h-48 bg-gradient-to-br from-purple-200 to-purple-400 overflow-hidden">
@@ -376,6 +411,39 @@
                     }
                 });
             }
+        });
+
+        // Event filtering
+        const searchInput = document.getElementById('searchInput');
+        const yearSelect = document.getElementById('yearSelect');
+        const clearFilters = document.getElementById('clearFilters');
+        const eventCards = document.querySelectorAll('.event-card');
+
+        function filterEvents() {
+            const searchTerm = (searchInput?.value || '').toLowerCase();
+            const year = yearSelect?.value;
+            let visibleCount = 0;
+
+            eventCards.forEach(card => {
+                const eventName = (card.dataset.name || '').toLowerCase();
+                const eventYear = card.dataset.year;
+                
+                const matchesSearch = eventName.includes(searchTerm);
+                const matchesYear = !year || eventYear === year;
+                const isVisible = matchesSearch && matchesYear;
+
+                card.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) visibleCount++;
+            });
+        }
+
+        searchInput?.addEventListener('input', filterEvents);
+        yearSelect?.addEventListener('change', filterEvents);
+
+        clearFilters?.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (yearSelect) yearSelect.value = '';
+            filterEvents();
         });
     </script>
 
