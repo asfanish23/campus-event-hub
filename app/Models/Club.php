@@ -32,6 +32,14 @@ class Club extends Model
     ];
 
     /**
+     * Relationship: Club has many events
+     */
+    public function events()
+    {
+        return $this->hasMany(Event::class);
+    }
+
+    /**
      * Relationship: Club has one Instagram account
      */
     public function instagramAccount(): HasOne
