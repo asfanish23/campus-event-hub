@@ -242,7 +242,7 @@
 
                 <!-- Club Events Section -->
                 <div class="bg-white rounded-lg shadow p-6 mt-8">
-                    <h3 class="text-lg font-bold text-gray-800 mb-6">📋 Club Events</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-6">📋 Club Events ({{ $events->count() }} total)</h3>
                     
                     <!-- Controls Row -->
                     <div class="flex flex-col sm:flex-row gap-4 mb-6">
