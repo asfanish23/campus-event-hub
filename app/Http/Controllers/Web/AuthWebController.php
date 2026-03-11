@@ -93,7 +93,7 @@ class AuthWebController extends Controller
 
     public function showForgotPassword()
     {
-        return view('auth.forgot-password');
+        return view('Auth.forgot-password');
     }
 
     public function sendResetLink(Request $request)
