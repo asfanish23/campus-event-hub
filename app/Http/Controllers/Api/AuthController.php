@@ -14,56 +14,68 @@ class AuthController extends Controller
     {
         \Log::info('Register endpoint called', ['path' => $request->getPathInfo(), 'method' => $request->getMethod()]);
         
+        // Get JSON data explicitly
+        $data = $request->json()->all();
+        \Log::info('Request JSON data', ['data' => $data]);
+        
         try {
-            $validated = $request->validate([
+            // Validate using JSON data
+            $validated = \Illuminate\Support\Facades\Validator::make($data, [
                 'name' => 'required|string',
                 'email' => 'required|email|unique:users',
                 'password' => 'required|min:6'
-            ]);
+            ])->validate();
+            
             \Log::info('Validation passed', ['validated' => $validated]);
 
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-            ]);
+            $user = User::create($validated + ['password' => Hash::make($validated['password'])]);
             \Log::info('User created', ['user_id' => $user->id]);
 
             $token = $user->createToken('auth_token')->plainTextToken;
             \Log::info('Token created');
 
-            $response = response()->json([
+            return response()->json([
                 'user' => $user,
                 'token' => $token
             ], 201);
-            
-            \Log::info('Response created', ['status' => 201]);
-            return $response;
         } catch (\Exception $e) {
-            \Log::error('Register error', ['exception' => $e->getMessage()]);
+            \Log::error('Register error', ['exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             throw $e;
         }
     }
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+        \Log::info('Login endpoint called');
+        
+        $data = $request->json()->all();
+        \Log::info('Login JSON data', ['data' => ['email' => $data['email'] ?? null]]);
+        
+        try {
+            $validated = \Illuminate\Support\Facades\Validator::make($data, [
+                'email' => 'required|email',
+                'password' => 'required'
+            ])->validate();
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+            if (!Auth::attempt($validated)) {
+                \Log::warning('Invalid login credentials', ['email' => $validated['email']]);
+                return response()->json([
+                    'message' => 'Invalid login credentials'
+                ], 401);
+            }
+
+            $user = User::where('email', $validated['email'])->firstOrFail();
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
+            \Log::info('Login successful', ['user_id' => $user->id]);
+
             return response()->json([
-                'message' => 'Invalid login credentials'
-            ], 401);
+                'user' => $user,
+                'token' => $token
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Login error', ['exception' => $e->getMessage()]);
+            throw $e;
         }
-
-        $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ]);
     }
 }
