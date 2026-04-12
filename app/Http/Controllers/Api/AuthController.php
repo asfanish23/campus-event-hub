@@ -14,12 +14,24 @@ class AuthController extends Controller
     {
         \Log::info('Register endpoint called', ['path' => $request->getPathInfo(), 'method' => $request->getMethod()]);
         
-        // Get JSON data explicitly
-        $data = $request->json()->all();
-        \Log::info('Request JSON data', ['data' => $data]);
+        // Try multiple ways to get JSON data
+        $jsonData = $request->json()->all();
+        $requestAll = $request->all();
+        $rawInput = file_get_contents('php://input');
+        $decodedRaw = json_decode($rawInput, true);
+        
+        \Log::info('Request data debug', [
+            'json_all' => $jsonData,
+            'request_all' => $requestAll,
+            'raw_input_length' => strlen($rawInput),
+            'raw_input' => $rawInput,
+            'decoded_raw' => $decodedRaw
+        ]);
+        
+        // Use whichever data was parsed
+        $data = !empty(\Illuminate\Support\Arr::whereNotNull($decodedRaw)) ? $decodedRaw : $jsonData;
         
         try {
-            // Validate using JSON data
             $validated = \Illuminate\Support\Facades\Validator::make($data, [
                 'name' => 'required|string',
                 'email' => 'required|email|unique:users',
@@ -39,7 +51,7 @@ class AuthController extends Controller
                 'token' => $token
             ], 201);
         } catch (\Exception $e) {
-            \Log::error('Register error', ['exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            \Log::error('Register error', ['exception' => $e->getMessage()]);
             throw $e;
         }
     }
