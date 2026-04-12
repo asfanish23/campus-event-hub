@@ -14,9 +14,8 @@ class EventController extends Controller
     public function index()
     {
         try {
-            $events = Event::where('status', 'active')
-                ->orWhere('status', 'upcoming')
-                ->orderBy('event_date', 'asc')
+            $events = Event::whereIn('status', ['Upcoming', 'Currently Running'])
+                ->orderBy('date', 'asc')
                 ->get();
 
             return response()->json([
@@ -56,13 +55,10 @@ class EventController extends Controller
         try {
             $query = $request->input('q', '');
 
-            $events = Event::where('title', 'like', "%$query%")
+            $events = Event::where('name', 'like', "%$query%")
                 ->orWhere('description', 'like', "%$query%")
-                ->where(function ($q) {
-                    $q->where('status', 'active')
-                        ->orWhere('status', 'upcoming');
-                })
-                ->orderBy('event_date', 'asc')
+                ->whereIn('status', ['Upcoming', 'Currently Running'])
+                ->orderBy('date', 'asc')
                 ->get();
 
             return response()->json([
