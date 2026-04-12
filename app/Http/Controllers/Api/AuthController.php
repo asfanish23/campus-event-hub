@@ -12,6 +12,8 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        \Log::info('Register endpoint called', ['path' => $request->getPathInfo(), 'method' => $request->getMethod()]);
+        
         $request->validate([
             'name' => 'required|string',
             'email' => 'required|email|unique:users',
