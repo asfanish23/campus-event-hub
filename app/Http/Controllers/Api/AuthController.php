@@ -14,24 +14,35 @@ class AuthController extends Controller
     {
         \Log::info('Register endpoint called', ['path' => $request->getPathInfo(), 'method' => $request->getMethod()]);
         
-        $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6'
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string',
+                'email' => 'required|email|unique:users',
+                'password' => 'required|min:6'
+            ]);
+            \Log::info('Validation passed', ['validated' => $validated]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
+            \Log::info('User created', ['user_id' => $user->id]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            $token = $user->createToken('auth_token')->plainTextToken;
+            \Log::info('Token created');
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ], 201);
+            $response = response()->json([
+                'user' => $user,
+                'token' => $token
+            ], 201);
+            
+            \Log::info('Response created', ['status' => 201]);
+            return $response;
+        } catch (\Exception $e) {
+            \Log::error('Register error', ['exception' => $e->getMessage()]);
+            throw $e;
+        }
     }
 
     public function login(Request $request)
