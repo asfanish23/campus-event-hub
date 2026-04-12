@@ -7,6 +7,15 @@ use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\TelegramController;
 use App\Models\Event;
 
+// Health check endpoint (no auth required)
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'API is running',
+        'timestamp' => now()
+    ]);
+});
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
