@@ -23,6 +23,22 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
+        $this->renderable(function (\Illuminate\Validation\ValidationException $e, $request) {
+            // Return JSON for API requests with validation errors
+            if ($request->expectsJson() || $request->is('api/*')) {
+                \Log::error('Validation exception on API', [
+                    'errors' => $e->errors(),
+                    'path' => $request->getPathInfo()
+                ]);
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            
+            return null;
+        });
+
         $this->reportable(function (Throwable $e) {
             //
         });
