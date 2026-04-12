@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\TelegramController;
 use App\Models\Event;
@@ -18,6 +19,13 @@ Route::get('/health', function () {
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// Public Event Endpoints (no auth required)
+Route::prefix('events')->group(function () {
+    Route::get('/', [EventController::class, 'index']);
+    Route::get('/search', [EventController::class, 'search']);
+    Route::get('/{event}', [EventController::class, 'show']);
+});
 
 // Telegram webhook (public, no auth required)
 Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
