@@ -85,9 +85,14 @@ class AuthWebController extends Controller
         return redirect()->intended(route('dashboard'));
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
         Auth::logout();
+        
+        // Invalidate the session and regenerate session ID
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
         return redirect()->route('login');
     }
 
