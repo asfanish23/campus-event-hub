@@ -14,7 +14,7 @@ class AuthWebController extends Controller
 {
     public function showLogin()
     {
-        return view('auth.login');
+        return view('Auth.login');
     }
 
     public function login(Request $request)
@@ -129,7 +129,7 @@ class AuthWebController extends Controller
 
     public function showResetPassword(Request $request, $token)
     {
-        return view('auth.reset-password', ['request' => $request, 'token' => $token]);
+        return view('Auth.reset-password', ['request' => $request, 'token' => $token]);
     }
 
     public function resetPassword(Request $request)
