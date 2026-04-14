@@ -12,11 +12,15 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $validated = $request->validate([
+        // Get data from JSON body
+        $data = $request->json()->all() ?? $request->all();
+        
+        // Validate the data
+        $validated = \Illuminate\Support\Facades\Validator::make($data, [
             'name' => 'required|string',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:6'
-        ]);
+        ])->validate();
 
         $user = User::create([
             'name' => $validated['name'],
@@ -35,10 +39,14 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $validated = $request->validate([
+        // Get data from JSON body
+        $data = $request->json()->all() ?? $request->all();
+        
+        // Validate the data
+        $validated = \Illuminate\Support\Facades\Validator::make($data, [
             'email' => 'required|email',
             'password' => 'required'
-        ]);
+        ])->validate();
 
         if (!Auth::attempt($validated)) {
             return response()->json([
