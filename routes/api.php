@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\ClubController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\TelegramController;
 use App\Models\Event;
@@ -25,6 +26,13 @@ Route::prefix('events')->group(function () {
     Route::get('/', [EventController::class, 'index']);
     Route::get('/search', [EventController::class, 'search']);
     Route::get('/{event}', [EventController::class, 'show']);
+});
+
+// Public Clubs Endpoints (no auth required)
+Route::prefix('clubs')->group(function () {
+    Route::get('/', [ClubController::class, 'index']);
+    Route::get('/search', [ClubController::class, 'search']);
+    Route::get('/{club}', [ClubController::class, 'show']);
 });
 
 // Telegram webhook (public, no auth required)
