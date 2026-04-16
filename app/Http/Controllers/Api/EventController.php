@@ -5,22 +5,33 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Event;
+use Illuminate\Support\Facades\Auth;
 
 class EventController extends Controller
 {
     /**
      * Get all events
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             $events = Event::whereIn('status', ['Upcoming', 'Currently Running'])
                 ->orderBy('date', 'asc')
                 ->get();
 
+            $user = Auth::guard('sanctum')->user();
+            
+            // Format events with like status if user is authenticated
+            $formattedEvents = $events->map(function ($event) use ($user) {
+                $eventData = $event->toArray();
+                $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
+                $eventData['likes'] = $event->likes()->count();
+                return $eventData;
+            });
+
             return response()->json([
-                'data' => $events,
-                'count' => $events->count()
+                'data' => $formattedEvents,
+                'count' => $formattedEvents->count()
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -36,9 +47,14 @@ class EventController extends Controller
     {
         try {
             $event = Event::findOrFail($id);
+            $user = Auth::guard('sanctum')->user();
+
+            $eventData = $event->toArray();
+            $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
+            $eventData['likes'] = $event->likes()->count();
 
             return response()->json([
-                'data' => $event
+                'data' => $eventData
             ]);
         } catch (\Exception $e) {
             return response()->json([
