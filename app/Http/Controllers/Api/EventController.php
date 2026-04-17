@@ -15,7 +15,8 @@ class EventController extends Controller
     public function index(Request $request)
     {
         try {
-            $events = Event::whereIn('status', ['Upcoming', 'Currently Running'])
+            $events = Event::with('club')
+                ->whereIn('status', ['Upcoming', 'Currently Running'])
                 ->orderBy('date', 'asc')
                 ->get();
 
@@ -46,7 +47,7 @@ class EventController extends Controller
     public function show($id)
     {
         try {
-            $event = Event::findOrFail($id);
+            $event = Event::with('club')->findOrFail($id);
             $user = Auth::guard('sanctum')->user();
 
             $eventData = $event->toArray();
@@ -71,7 +72,8 @@ class EventController extends Controller
         try {
             $query = $request->input('q', '');
 
-            $events = Event::where('name', 'like', "%$query%")
+            $events = Event::with('club')
+                ->where('name', 'like', "%$query%")
                 ->orWhere('description', 'like', "%$query%")
                 ->whereIn('status', ['Upcoming', 'Currently Running'])
                 ->orderBy('date', 'asc')
