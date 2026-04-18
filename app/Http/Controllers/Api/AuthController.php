@@ -22,11 +22,15 @@ class AuthController extends Controller
             'password' => 'required|min:6'
         ])->validate();
 
+        // Generate a unique student ID
+        $studentId = 'STU' . strtoupper(substr(md5(time() . $validated['email']), 0, 8));
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'student',  // Mobile API registrations are always students
+            'student_id' => $studentId,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
