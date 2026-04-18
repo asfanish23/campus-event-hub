@@ -76,6 +76,17 @@
                         @enderror
                     </div>
 
+                    {{-- Student ID --}}
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Student ID</label>
+                        <input type="text" name="student_id" value="{{ old('student_id', $user->student_id) }}" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('student_id') border-red-500 @enderror"
+                               placeholder="Your university student ID">
+                        @error('student_id')
+                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     {{-- Bio --}}
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Bio</label>

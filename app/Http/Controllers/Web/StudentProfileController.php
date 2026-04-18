@@ -51,6 +51,7 @@ class StudentProfileController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email,' . $user->id,
                 'phone' => 'nullable|string|max:20',
+                'student_id' => 'nullable|string|max:50',
                 'bio' => 'nullable|string|max:500',
                 'address' => 'nullable|string|max:255',
                 'city' => 'nullable|string|max:100',

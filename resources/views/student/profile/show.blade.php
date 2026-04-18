@@ -91,6 +91,10 @@
                         <p class="text-gray-600 p-3 bg-gray-50 rounded-lg">{{ $user->phone ?? 'Not provided' }}</p>
                     </div>
                     <div>
+                        <label class="text-gray-700 font-semibold mb-2 block">Student ID</label>
+                        <p class="text-gray-600 p-3 bg-gray-50 rounded-lg">{{ $user->student_id ?? 'Not provided' }}</p>
+                    </div>
+                    <div>
                         <label class="text-gray-700 font-semibold mb-2 block">City</label>
                         <p class="text-gray-600 p-3 bg-gray-50 rounded-lg">{{ $user->city ?? 'Not provided' }}</p>
                     </div>
