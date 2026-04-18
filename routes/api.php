@@ -41,10 +41,7 @@ Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/me', function (Request $request) {
-        $user = $request->user();
-        return response()->json([
-            'data' => $user
-        ]);
+        return $request->user();
     });
 
     // Profile Update
