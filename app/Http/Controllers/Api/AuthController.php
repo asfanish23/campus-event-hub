@@ -19,11 +19,14 @@ class AuthController extends Controller
         $validated = \Illuminate\Support\Facades\Validator::make($data, [
             'name' => 'required|string',
             'email' => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'password' => 'required|min:6',
+            'student_id' => 'sometimes|string|nullable'
         ])->validate();
 
-        // Generate a unique student ID
-        $studentId = 'STU' . strtoupper(substr(md5(time() . $validated['email']), 0, 8));
+        // Use provided student_id or generate one
+        $studentId = !empty($validated['student_id']) 
+            ? $validated['student_id']
+            : 'STU' . strtoupper(substr(md5(time() . $validated['email']), 0, 8));
 
         $user = User::create([
             'name' => $validated['name'],
