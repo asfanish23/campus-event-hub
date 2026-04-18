@@ -92,6 +92,7 @@ class AuthController extends Controller
                     'name' => 'sometimes|string|max:255',
                     'email' => 'sometimes|email|unique:users,email,' . $user->id,
                     'phone' => 'sometimes|string|nullable',
+                    'student_id' => 'sometimes|string|nullable',
                     'address' => 'sometimes|string|nullable',
                     'city' => 'sometimes|string|nullable',
                     'postal_code' => 'sometimes|string|nullable',
@@ -108,6 +109,9 @@ class AuthController extends Controller
             }
             if (isset($validated['phone'])) {
                 $user->phone = $validated['phone'];
+            }
+            if (isset($validated['student_id'])) {
+                $user->student_id = $validated['student_id'];
             }
             if (isset($validated['address'])) {
                 $user->address = $validated['address'];
