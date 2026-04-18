@@ -64,4 +64,81 @@ class AuthController extends Controller
             'token' => $token
         ]);
     }
+
+    /**
+     * Update user profile (including profile photo)
+     */
+    public function updateProfile(Request $request)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            // Validate input
+            $validated = \Illuminate\Support\Facades\Validator::make(
+                array_merge($request->all(), $request->json()->all() ?? []),
+                [
+                    'name' => 'sometimes|string|max:255',
+                    'email' => 'sometimes|email|unique:users,email,' . $user->id,
+                    'phone' => 'sometimes|string|nullable',
+                    'address' => 'sometimes|string|nullable',
+                    'city' => 'sometimes|string|nullable',
+                    'postal_code' => 'sometimes|string|nullable',
+                    'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+                ]
+            )->validate();
+
+            // Update basic profile data
+            if (isset($validated['name'])) {
+                $user->name = $validated['name'];
+            }
+            if (isset($validated['email'])) {
+                $user->email = $validated['email'];
+            }
+            if (isset($validated['phone'])) {
+                $user->phone = $validated['phone'];
+            }
+            if (isset($validated['address'])) {
+                $user->address = $validated['address'];
+            }
+            if (isset($validated['city'])) {
+                $user->city = $validated['city'];
+            }
+            if (isset($validated['postal_code'])) {
+                $user->postal_code = $validated['postal_code'];
+            }
+
+            // Handle profile photo upload
+            if ($request->hasFile('profile_photo')) {
+                // Delete old profile photo if it exists
+                if ($user->profile_photo && \Storage::exists('public/' . $user->profile_photo)) {
+                    \Storage::delete('public/' . $user->profile_photo);
+                }
+
+                // Store new profile photo
+                $path = $request->file('profile_photo')->store('profile_photos', 'public');
+                $user->profile_photo = $path;
+            }
+
+            $user->save();
+
+            return response()->json([
+                'message' => 'Profile updated successfully',
+                'user' => $user
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update profile: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

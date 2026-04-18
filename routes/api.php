@@ -44,6 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
+    // Profile Update
+    Route::post('/profile/update', [AuthController::class, 'updateProfile']);
+
     // Content-Based Filtering & Recommendations
     Route::prefix('recommendations')->group(function () {
         Route::get('/', [RecommendationController::class, 'getRecommendations']);
