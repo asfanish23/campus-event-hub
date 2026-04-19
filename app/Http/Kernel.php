@@ -35,6 +35,8 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\DebugSessionMiddleware::class,
+            \App\Http\Middleware\ValidateSessionMiddleware::class,  // Validate session on every request
+            \App\Http\Middleware\NoCacheMiddleware::class,          // Prevent caching for protected pages
         ],
 
         'api' => [

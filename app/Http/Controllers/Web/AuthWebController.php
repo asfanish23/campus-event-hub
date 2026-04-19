@@ -87,13 +87,27 @@ class AuthWebController extends Controller
 
     public function logout(Request $request)
     {
+        // Clear all authentication data
         Auth::logout();
         
-        // Invalidate the session and regenerate session ID
+        // Invalidate the session completely
         $request->session()->invalidate();
+        
+        // Regenerate CSRF token to prevent token reuse
         $request->session()->regenerateToken();
         
-        return redirect()->route('login');
+        // Clear all cached data
+        $request->session()->flush();
+        
+        // Redirect to login with no-cache headers
+        $response = redirect()->route('login')->with('success', 'You have been logged out successfully.');
+        
+        // Prevent browser caching after logout
+        $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', 'Sun, 02 Jan 1990 00:00:00 GMT');
+        
+        return $response;
     }
 
     public function showForgotPassword()
