@@ -14,7 +14,7 @@ class ClubController extends Controller
     public function index()
     {
         try {
-            $clubs = Club::all();
+            $clubs = Club::with(['events', 'products'])->get();
             return response()->json([
                 'data' => $clubs,
                 'count' => $clubs->count()
@@ -33,6 +33,8 @@ class ClubController extends Controller
     public function show(Club $club)
     {
         try {
+            // Eagerly load events and products
+            $club->load('events', 'products');
             return response()->json([
                 'data' => $club
             ]);
@@ -64,7 +66,7 @@ class ClubController extends Controller
                 $clubs->where('category', $category);
             }
             
-            $clubs = $clubs->get();
+            $clubs = $clubs->with(['events', 'products'])->get();
             
             return response()->json([
                 'data' => $clubs,
@@ -73,6 +75,25 @@ class ClubController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Search failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get events for a specific club
+     */
+    public function getEvents(Club $club)
+    {
+        try {
+            $events = $club->events()->get();
+            return response()->json([
+                'data' => $events,
+                'count' => $events->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch club events',
                 'error' => $e->getMessage()
             ], 500);
         }

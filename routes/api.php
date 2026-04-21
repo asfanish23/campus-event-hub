@@ -33,6 +33,7 @@ Route::prefix('clubs')->group(function () {
     Route::get('/', [ClubController::class, 'index']);
     Route::get('/search', [ClubController::class, 'search']);
     Route::get('/{club}', [ClubController::class, 'show']);
+    Route::get('/{club}/events', [ClubController::class, 'getEvents']);
 });
 
 // Telegram webhook (public, no auth required)
