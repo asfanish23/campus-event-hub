@@ -264,8 +264,14 @@
             
             <div class="bg-gray-50 p-6 rounded-lg text-center mb-6">
                 <p class="text-gray-600 mb-4 font-semibold">{{ $event->name }}</p>
+                @php
+                    $attendanceQrPayload = json_encode([
+                        'event_id' => $event->id,
+                        'scan_url' => url('/api/attendance/scan?event_id=' . $event->id),
+                    ], JSON_UNESCAPED_SLASHES);
+                @endphp
                 <div id="qrCode" class="flex justify-center">
-                    {!! QrCode::size(250)->generate(route('event.attendance', $event)) !!}
+                    {!! QrCode::size(250)->generate($attendanceQrPayload) !!}
                 </div>
             </div>
 

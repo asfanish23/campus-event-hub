@@ -27,7 +27,7 @@ class AttendanceController extends Controller
             }
 
             $validated = $request->validate([
-                'event_id' => 'required|integer|min:1',
+                'event_id' => 'required|integer|min:1|exists:events,id',
                 'user_id' => 'sometimes|integer|min:1',
             ]);
 
