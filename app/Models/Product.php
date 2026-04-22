@@ -19,6 +19,9 @@ class Product extends Model
         'club_id'
     ];
 
+    // Always eager load media relationship
+    protected $with = ['media'];
+
     public function club()
     {
         return $this->belongsTo(Club::class);

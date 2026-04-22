@@ -14,7 +14,7 @@ class ClubController extends Controller
     public function index()
     {
         try {
-            $clubs = Club::with(['events', 'products'])->get();
+            $clubs = Club::with(['events', 'products.media'])->get();
             return response()->json([
                 'data' => $clubs,
                 'count' => $clubs->count()
@@ -33,8 +33,8 @@ class ClubController extends Controller
     public function show(Club $club)
     {
         try {
-            // Eagerly load events and products
-            $club->load('events', 'products');
+            // Eagerly load events and products with media
+            $club->load('events', 'products.media');
             return response()->json([
                 'data' => $club
             ]);
@@ -66,7 +66,7 @@ class ClubController extends Controller
                 $clubs->where('category', $category);
             }
             
-            $clubs = $clubs->with(['events', 'products'])->get();
+            $clubs = $clubs->with(['events', 'products.media'])->get();
             
             return response()->json([
                 'data' => $clubs,

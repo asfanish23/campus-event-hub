@@ -85,6 +85,11 @@ class Event extends Model
         return $this->belongsToMany(User::class, 'event_likes', 'event_id', 'user_id')->withTimestamps();
     }
 
+    public function registrations()
+    {
+        return $this->hasMany(StudentEventRegistration::class);
+    }
+
     /**
      * Check if event has been posted to Instagram
      */

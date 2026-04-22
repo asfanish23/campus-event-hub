@@ -152,4 +152,68 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get user's registered events (joined events)
+     */
+    public function getUserRegistrations(Request $request)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            $registrations = $user->registrations()
+                ->with('event')
+                ->get();
+
+            $events = $registrations->map(function ($registration) {
+                return $registration->event;
+            })->filter();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User registrations retrieved successfully',
+                'count' => $events->count(),
+                'data' => $events
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to retrieve registrations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's orders (cart items)
+     */
+    public function getUserOrders(Request $request)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            $orders = $user->orders()
+                ->with('product')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User orders retrieved successfully',
+                'count' => $orders->count(),
+                'data' => $orders
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to retrieve orders: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -26,6 +26,7 @@ Route::prefix('events')->group(function () {
     Route::get('/', [EventController::class, 'index']);
     Route::get('/search', [EventController::class, 'search']);
     Route::get('/{event}', [EventController::class, 'show']);
+    Route::get('/{event}/join-status', [EventController::class, 'getJoinStatus']);
 });
 
 // Public Clubs Endpoints (no auth required)
@@ -60,9 +61,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{event}/like', [RecommendationController::class, 'likeEvent']);
         Route::post('/{event}/unlike', [RecommendationController::class, 'unlikeEvent']);
         Route::get('/{event}/like-status', [RecommendationController::class, 'getEventLikeStatus']);
+        
+        // Event Registration/Join
+        Route::post('/{event}/join', [EventController::class, 'join']);
+        Route::post('/{event}/leave', [EventController::class, 'leave']);
     });
 
     Route::get('likes', [RecommendationController::class, 'getUserLikes']);
+
+    // User Data Endpoints
+    Route::get('/me/registrations', [AuthController::class, 'getUserRegistrations']);
+    Route::get('/me/orders', [AuthController::class, 'getUserOrders']);
 
     // Telegram Bot Integration
     Route::prefix('telegram')->group(function () {
