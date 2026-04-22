@@ -7,9 +7,45 @@ use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\JsonResponse;
 
 class CartController extends Controller
 {
+    private function formatCartItem(CartItem $cartItem): array
+    {
+        $price = (float) ($cartItem->product?->price ?? 0);
+
+        return [
+            'id' => $cartItem->id,
+            'user_id' => $cartItem->user_id,
+            'product_id' => $cartItem->product_id,
+            'quantity' => $cartItem->quantity,
+            'price' => $price,
+            'total_price' => $price * $cartItem->quantity,
+            'created_at' => $cartItem->created_at,
+            'updated_at' => $cartItem->updated_at,
+            'product' => $cartItem->product,
+        ];
+    }
+
+    private function unauthorizedResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized - Please login first',
+            'error_code' => 'UNAUTHENTICATED'
+        ], 401);
+    }
+
+    private function notFoundResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Cart item not found',
+            'error_code' => 'CART_ITEM_NOT_FOUND'
+        ], 404);
+    }
+
     /**
      * Add a product to cart.
      */
@@ -18,11 +54,7 @@ class CartController extends Controller
         try {
             $user = Auth::guard('sanctum')->user();
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized - Please login first',
-                    'error_code' => 'UNAUTHENTICATED'
-                ], 401);
+                return $this->unauthorizedResponse();
             }
 
             $validated = $request->validate([
@@ -80,15 +112,7 @@ class CartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Added to cart successfully',
-                'data' => [
-                    'id' => $cartItem->id,
-                    'user_id' => $cartItem->user_id,
-                    'product_id' => $cartItem->product_id,
-                    'quantity' => $cartItem->quantity,
-                    'created_at' => $cartItem->created_at,
-                    'updated_at' => $cartItem->updated_at,
-                    'product' => $cartItem->product,
-                ]
+                'data' => $this->formatCartItem($cartItem)
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -120,17 +144,16 @@ class CartController extends Controller
         try {
             $user = Auth::guard('sanctum')->user();
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized - Please login first',
-                    'error_code' => 'UNAUTHENTICATED'
-                ], 401);
+                return $this->unauthorizedResponse();
             }
 
             $items = CartItem::with('product.media')
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            $formattedItems = $items->map(fn (CartItem $item) => $this->formatCartItem($item))->values();
+            $cartTotal = $formattedItems->sum('total_price');
 
             \Log::info('Get cart request', [
                 'user_id' => $user->id,
@@ -141,7 +164,8 @@ class CartController extends Controller
                 'success' => true,
                 'message' => 'Cart retrieved successfully',
                 'count' => $items->count(),
-                'data' => $items
+                'cart_total' => $cartTotal,
+                'data' => $formattedItems
             ], 200);
         } catch (\Exception $e) {
             \Log::error('Error fetching cart', [
@@ -153,6 +177,101 @@ class CartController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch cart',
                 'error_code' => 'FETCH_CART_FAILED'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a cart item's quantity.
+     */
+    public function update(Request $request, int $cartItemId)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return $this->unauthorizedResponse();
+            }
+
+            $validated = $request->validate([
+                'quantity' => 'required|integer|min:1',
+            ]);
+
+            $cartItem = CartItem::with('product.media')
+                ->where('id', $cartItemId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$cartItem) {
+                return $this->notFoundResponse();
+            }
+
+            $cartItem->quantity = (int) $validated['quantity'];
+            $cartItem->save();
+            $cartItem->refresh()->load('product.media');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart item updated successfully',
+                'data' => $this->formatCartItem($cartItem),
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+                'error_code' => 'VALIDATION_FAILED'
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error updating cart item', [
+                'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'cart_item_id' => $cartItemId,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update cart item',
+                'error_code' => 'UPDATE_CART_FAILED'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove an item from cart.
+     */
+    public function remove(int $cartItemId)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return $this->unauthorizedResponse();
+            }
+
+            $cartItem = CartItem::where('id', $cartItemId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$cartItem) {
+                return $this->notFoundResponse();
+            }
+
+            $cartItem->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart item removed successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error removing cart item', [
+                'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'cart_item_id' => $cartItemId,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to remove cart item',
+                'error_code' => 'REMOVE_CART_FAILED'
             ], 500);
         }
     }
