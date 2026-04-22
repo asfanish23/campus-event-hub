@@ -81,6 +81,7 @@ Route::middleware('auth')->group(function () {
     Route::get('event/{event}/attendance', [EventController::class, 'attendance'])->name('event.attendance');
     Route::get('event/{event}/reviews', [EventController::class, 'reviews'])->name('event.reviews');
 
+    Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     Route::put('attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update');
 
     Route::delete('event-media/{eventMedia}', [EventController::class, 'deleteMedia'])->name('event-media.destroy');

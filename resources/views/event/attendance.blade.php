@@ -183,7 +183,7 @@
                                                             </button>
                                                         </form>
                                                     @else
-                                                        <form method="POST" action="{{ route('attendance.store', '') }}" style="display:inline;">
+                                                        <form method="POST" action="{{ route('attendance.store') }}" style="display:inline;">
                                                             @csrf
                                                             <input type="hidden" name="event_id" value="{{ $event->id }}">
                                                             <input type="hidden" name="user_id" value="{{ $registration->user_id }}">
