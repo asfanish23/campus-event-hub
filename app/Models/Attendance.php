@@ -10,6 +10,7 @@ class Attendance extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'event_id',
         'attendee_name',
         'matric_no',
@@ -20,5 +21,10 @@ class Attendance extends Model
     public function event()
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }
