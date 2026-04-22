@@ -99,10 +99,37 @@ class EventController extends Controller
     {
         try {
             $user = Auth::guard('sanctum')->user();
+            
+            // Log request details
+            \Log::info('Join event request', [
+                'event_id' => $event->id,
+                'user_id' => $user?->id,
+                'user_authenticated' => $user !== null,
+                'timestamp' => now()
+            ]);
+            
             if (!$user) {
+                \Log::warning('Join event failed: User not authenticated', [
+                    'event_id' => $event->id
+                ]);
                 return response()->json([
-                    'message' => 'Unauthorized'
+                    'success' => false,
+                    'message' => 'Unauthorized - Please login first',
+                    'error_code' => 'UNAUTHENTICATED'
                 ], 401);
+            }
+
+            // Validate event exists
+            if (!$event || !$event->id) {
+                \Log::warning('Join event failed: Invalid event', [
+                    'event_id' => $event->id ?? 'null',
+                    'user_id' => $user->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Event not found',
+                    'error_code' => 'EVENT_NOT_FOUND'
+                ], 404);
             }
 
             // Check if user is already registered
@@ -111,32 +138,66 @@ class EventController extends Controller
                 ->first();
 
             if ($existing) {
+                \Log::info('User already joined event', [
+                    'event_id' => $event->id,
+                    'user_id' => $user->id,
+                    'registered_at' => $existing->registered_at
+                ]);
                 return response()->json([
+                    'success' => true,
                     'message' => 'You have already joined this event',
                     'data' => [
                         'joined' => true,
-                        'registered_at' => $existing->registered_at
+                        'registered_at' => $existing->registered_at,
+                        'event_id' => $event->id
                     ]
                 ], 200);
             }
 
             // Create registration
+            \Log::info('Creating event registration', [
+                'event_id' => $event->id,
+                'user_id' => $user->id
+            ]);
+            
             $registration = $user->registrations()->create([
                 'event_id' => $event->id,
                 'registered_at' => now()
             ]);
 
+            \Log::info('Successfully joined event', [
+                'event_id' => $event->id,
+                'user_id' => $user->id,
+                'registration_id' => $registration->id,
+                'registered_at' => $registration->registered_at
+            ]);
+
             return response()->json([
+                'success' => true,
                 'message' => 'Successfully joined the event',
                 'data' => [
                     'joined' => true,
                     'registered_at' => $registration->registered_at,
-                    'event' => $event
+                    'event_id' => $event->id,
+                    'user_id' => $user->id
                 ]
             ], 201);
         } catch (\Exception $e) {
+            \Log::error('Error joining event', [
+                'event_id' => $event->id ?? 'null',
+                'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
-                'message' => 'Failed to join event: ' . $e->getMessage()
+                'success' => false,
+                'message' => 'Failed to join event: ' . $e->getMessage(),
+                'error_code' => 'JOIN_FAILED',
+                'error_details' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -148,9 +209,21 @@ class EventController extends Controller
     {
         try {
             $user = Auth::guard('sanctum')->user();
+            
+            \Log::info('Leave event request', [
+                'event_id' => $event->id,
+                'user_id' => $user?->id,
+                'user_authenticated' => $user !== null
+            ]);
+            
             if (!$user) {
+                \Log::warning('Leave event failed: User not authenticated', [
+                    'event_id' => $event->id
+                ]);
                 return response()->json([
-                    'message' => 'Unauthorized'
+                    'success' => false,
+                    'message' => 'Unauthorized - Please login first',
+                    'error_code' => 'UNAUTHENTICATED'
                 ], 401);
             }
 
@@ -160,19 +233,42 @@ class EventController extends Controller
                 ->delete();
 
             if (!$deleted) {
+                \Log::info('User had not joined event', [
+                    'event_id' => $event->id,
+                    'user_id' => $user->id
+                ]);
                 return response()->json([
+                    'success' => true,
                     'message' => 'You have not joined this event',
-                    'data' => ['joined' => false]
+                    'data' => ['joined' => false, 'event_id' => $event->id]
                 ], 200);
             }
 
+            \Log::info('Successfully left event', [
+                'event_id' => $event->id,
+                'user_id' => $user->id,
+                'deleted_count' => $deleted
+            ]);
+
             return response()->json([
+                'success' => true,
                 'message' => 'Successfully left the event',
-                'data' => ['joined' => false]
+                'data' => ['joined' => false, 'event_id' => $event->id]
             ], 200);
         } catch (\Exception $e) {
+            \Log::error('Error leaving event', [
+                'event_id' => $event->id ?? 'null',
+                'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
-                'message' => 'Failed to leave event: ' . $e->getMessage()
+                'success' => false,
+                'message' => 'Failed to leave event: ' . $e->getMessage(),
+                'error_code' => 'LEAVE_FAILED',
+                'error_details' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
