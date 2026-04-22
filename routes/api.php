@@ -27,6 +27,7 @@ Route::prefix('events')->group(function () {
     Route::get('/search', [EventController::class, 'search']);
     Route::get('/{event}', [EventController::class, 'show']);
     Route::get('/{event}/join-status', [EventController::class, 'getJoinStatus']);
+    Route::get('/{event}/like-status', [EventController::class, 'getLikeStatus']);
 });
 
 // Public Clubs Endpoints (no auth required)
@@ -58,9 +59,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Event Likes (for increasing recommendation accuracy)
     Route::prefix('events')->group(function () {
-        Route::post('/{event}/like', [RecommendationController::class, 'likeEvent']);
-        Route::post('/{event}/unlike', [RecommendationController::class, 'unlikeEvent']);
-        Route::get('/{event}/like-status', [RecommendationController::class, 'getEventLikeStatus']);
+        // Required Like API
+        Route::post('/{event}/like', [EventController::class, 'like']);
+        Route::delete('/{event}/like', [EventController::class, 'unlike']);
+
+        // Backward compatibility for older mobile clients
+        Route::post('/{event}/unlike', [EventController::class, 'unlike']);
+        Route::get('/{event}/like-status', [EventController::class, 'getLikeStatus']);
         
         // Event Registration/Join
         Route::post('/{event}/join', [EventController::class, 'join']);
@@ -68,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('likes', [RecommendationController::class, 'getUserLikes']);
+    Route::get('/users/{user}/liked-events', [EventController::class, 'getUserLikedEvents']);
 
     // User Data Endpoints
     Route::get('/me/registrations', [AuthController::class, 'getUserRegistrations']);

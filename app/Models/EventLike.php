@@ -9,6 +9,7 @@ class EventLike extends Model
 {
     use HasFactory;
 
+    protected $table = 'liked_events';
     protected $fillable = ['user_id', 'event_id'];
     public $timestamps = false;
 

@@ -87,7 +87,7 @@ class User extends Authenticatable
 
     public function likedEvents()
     {
-        return $this->belongsToMany(Event::class, 'event_likes', 'user_id', 'event_id');
+        return $this->belongsToMany(Event::class, 'liked_events', 'user_id', 'event_id');
     }
 
     public function telegramPreference()

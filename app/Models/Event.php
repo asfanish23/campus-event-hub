@@ -82,7 +82,7 @@ class Event extends Model
 
     public function likedBy()
     {
-        return $this->belongsToMany(User::class, 'event_likes', 'event_id', 'user_id')->withTimestamps();
+        return $this->belongsToMany(User::class, 'liked_events', 'event_id', 'user_id');
     }
 
     public function registrations()

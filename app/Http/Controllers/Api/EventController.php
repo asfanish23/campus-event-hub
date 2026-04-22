@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Event;
+use App\Models\EventLike;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class EventController extends Controller
@@ -95,22 +97,35 @@ class EventController extends Controller
     /**
      * Join an event
      */
-    public function join(Request $request, Event $event)
+    public function join(Request $request, $eventId)
     {
         try {
-            $user = Auth::guard('sanctum')->user();
-            
-            // Log request details
             \Log::info('Join event request', [
-                'event_id' => $event->id,
-                'user_id' => $user?->id,
-                'user_authenticated' => $user !== null,
+                'raw_event_id' => $eventId,
+                'event_id_type' => gettype($eventId),
+                'route_params' => $request->route()->parameters(),
                 'timestamp' => now()
             ]);
             
+            // Sanitize and validate event ID
+            $eventId = (int) $eventId;
+            if ($eventId <= 0) {
+                \Log::warning('Invalid event ID', [
+                    'event_id' => $eventId,
+                    'original' => $request->route('eventId')
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid event ID provided',
+                    'error_code' => 'INVALID_EVENT_ID'
+                ], 400);
+            }
+            
+            $user = Auth::guard('sanctum')->user();
+            
             if (!$user) {
                 \Log::warning('Join event failed: User not authenticated', [
-                    'event_id' => $event->id
+                    'event_id' => $eventId
                 ]);
                 return response()->json([
                     'success' => false,
@@ -119,18 +134,44 @@ class EventController extends Controller
                 ], 401);
             }
 
-            // Validate event exists
-            if (!$event || !$event->id) {
-                \Log::warning('Join event failed: Invalid event', [
-                    'event_id' => $event->id ?? 'null',
-                    'user_id' => $user->id
+            // Manually query for event with detailed logging
+            \Log::debug('Querying event table', [
+                'event_id' => $eventId,
+                'user_id' => $user->id
+            ]);
+            
+            $event = Event::find($eventId);
+            
+            if (!$event) {
+                // Log detailed diagnostic info
+                $totalEvents = Event::count();
+                $eventIds = Event::pluck('id')->toArray();
+                
+                \Log::warning('Event not found in database', [
+                    'searched_id' => $eventId,
+                    'user_id' => $user->id,
+                    'total_events_in_db' => $totalEvents,
+                    'available_event_ids' => $eventIds,
+                    'table_name' => (new Event())->getTable()
                 ]);
+                
                 return response()->json([
                     'success' => false,
-                    'message' => 'Event not found',
-                    'error_code' => 'EVENT_NOT_FOUND'
+                    'message' => "Event with ID $eventId not found in database",
+                    'error_code' => 'EVENT_NOT_FOUND',
+                    'debug' => [
+                        'searched_id' => $eventId,
+                        'total_events' => $totalEvents,
+                        'available_ids' => count($eventIds) > 10 ? array_slice($eventIds, 0, 10) : $eventIds
+                    ]
                 ], 404);
             }
+
+            \Log::info('Event found', [
+                'event_id' => $event->id,
+                'event_name' => $event->name,
+                'user_id' => $user->id
+            ]);
 
             // Check if user is already registered
             $existing = $user->registrations()
@@ -184,7 +225,7 @@ class EventController extends Controller
             ], 201);
         } catch (\Exception $e) {
             \Log::error('Error joining event', [
-                'event_id' => $event->id ?? 'null',
+                'event_id' => $eventId ?? 'null',
                 'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
                 'error_code' => $e->getCode(),
@@ -205,26 +246,52 @@ class EventController extends Controller
     /**
      * Leave an event
      */
-    public function leave(Request $request, Event $event)
+    public function leave(Request $request, $eventId)
     {
         try {
-            $user = Auth::guard('sanctum')->user();
-            
             \Log::info('Leave event request', [
-                'event_id' => $event->id,
-                'user_id' => $user?->id,
-                'user_authenticated' => $user !== null
+                'raw_event_id' => $eventId,
+                'timestamp' => now()
             ]);
+            
+            // Sanitize and validate event ID
+            $eventId = (int) $eventId;
+            if ($eventId <= 0) {
+                \Log::warning('Invalid event ID for leave', [
+                    'event_id' => $eventId
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid event ID provided',
+                    'error_code' => 'INVALID_EVENT_ID'
+                ], 400);
+            }
+            
+            $user = Auth::guard('sanctum')->user();
             
             if (!$user) {
                 \Log::warning('Leave event failed: User not authenticated', [
-                    'event_id' => $event->id
+                    'event_id' => $eventId
                 ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized - Please login first',
                     'error_code' => 'UNAUTHENTICATED'
                 ], 401);
+            }
+
+            // Verify event exists
+            $event = Event::find($eventId);
+            if (!$event) {
+                \Log::warning('Event not found for leave', [
+                    'searched_id' => $eventId,
+                    'user_id' => $user->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => "Event with ID $eventId not found",
+                    'error_code' => 'EVENT_NOT_FOUND'
+                ], 404);
             }
 
             // Find and delete registration
@@ -257,7 +324,7 @@ class EventController extends Controller
             ], 200);
         } catch (\Exception $e) {
             \Log::error('Error leaving event', [
-                'event_id' => $event->id ?? 'null',
+                'event_id' => $eventId ?? 'null',
                 'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
                 'error_code' => $e->getCode(),
@@ -276,9 +343,32 @@ class EventController extends Controller
     /**
      * Get join status for an event
      */
-    public function getJoinStatus(Event $event)
+    public function getJoinStatus($eventId)
     {
         try {
+            // Sanitize and validate event ID
+            $eventId = (int) $eventId;
+            if ($eventId <= 0) {
+                return response()->json([
+                    'data' => [
+                        'event_id' => $eventId,
+                        'is_joined' => false,
+                        'joined_count' => 0
+                    ]
+                ], 200);
+            }
+            
+            $event = Event::find($eventId);
+            if (!$event) {
+                return response()->json([
+                    'data' => [
+                        'event_id' => $eventId,
+                        'is_joined' => false,
+                        'joined_count' => 0
+                    ]
+                ], 200);
+            }
+            
             $user = Auth::guard('sanctum')->user();
             
             $joined = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
@@ -292,8 +382,281 @@ class EventController extends Controller
                 ]
             ], 200);
         } catch (\Exception $e) {
+            \Log::error('Error getting join status', [
+                'event_id' => $eventId ?? 'null',
+                'error_message' => $e->getMessage()
+            ]);
+            
             return response()->json([
-                'message' => 'Failed to get join status: ' . $e->getMessage()
+                'data' => [
+                    'event_id' => $eventId ?? 0,
+                    'is_joined' => false,
+                    'joined_count' => 0
+                ]
+            ], 200);
+        }
+    }
+
+    /**
+     * Like an event
+     */
+    public function like(Request $request, $eventId)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Please login first',
+                    'error_code' => 'UNAUTHENTICATED'
+                ], 401);
+            }
+
+            $eventId = (int) $eventId;
+            if ($eventId <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid event ID provided',
+                    'error_code' => 'INVALID_EVENT_ID'
+                ], 400);
+            }
+
+            $event = Event::find($eventId);
+            if (!$event) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Event not found',
+                    'error_code' => 'EVENT_NOT_FOUND'
+                ], 404);
+            }
+
+            $existingLike = EventLike::where('user_id', $user->id)
+                ->where('event_id', $event->id)
+                ->first();
+
+            if ($existingLike) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Event already liked',
+                    'data' => [
+                        'event_id' => $event->id,
+                        'is_liked' => true,
+                        'likes_count' => $event->likes()->count()
+                    ]
+                ], 200);
+            }
+
+            EventLike::create([
+                'user_id' => $user->id,
+                'event_id' => $event->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Event liked successfully',
+                'data' => [
+                    'event_id' => $event->id,
+                    'is_liked' => true,
+                    'likes_count' => $event->likes()->count()
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Error liking event', [
+                'event_id' => $eventId ?? 'null',
+                'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to like event',
+                'error_code' => 'LIKE_FAILED'
+            ], 500);
+        }
+    }
+
+    /**
+     * Unlike an event
+     */
+    public function unlike(Request $request, $eventId)
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Please login first',
+                    'error_code' => 'UNAUTHENTICATED'
+                ], 401);
+            }
+
+            $eventId = (int) $eventId;
+            if ($eventId <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid event ID provided',
+                    'error_code' => 'INVALID_EVENT_ID'
+                ], 400);
+            }
+
+            $event = Event::find($eventId);
+            if (!$event) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Event not found',
+                    'error_code' => 'EVENT_NOT_FOUND'
+                ], 404);
+            }
+
+            EventLike::where('user_id', $user->id)
+                ->where('event_id', $event->id)
+                ->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Event unliked successfully',
+                'data' => [
+                    'event_id' => $event->id,
+                    'is_liked' => false,
+                    'likes_count' => $event->likes()->count()
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error unliking event', [
+                'event_id' => $eventId ?? 'null',
+                'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to unlike event',
+                'error_code' => 'UNLIKE_FAILED'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get like status for an event
+     */
+    public function getLikeStatus($eventId)
+    {
+        try {
+            $eventId = (int) $eventId;
+            if ($eventId <= 0) {
+                return response()->json([
+                    'data' => [
+                        'event_id' => $eventId,
+                        'is_liked' => false,
+                        'likes_count' => 0
+                    ]
+                ], 200);
+            }
+
+            $event = Event::find($eventId);
+            if (!$event) {
+                return response()->json([
+                    'data' => [
+                        'event_id' => $eventId,
+                        'is_liked' => false,
+                        'likes_count' => 0
+                    ]
+                ], 200);
+            }
+
+            $user = Auth::guard('sanctum')->user();
+            $isLiked = $user ? EventLike::where('user_id', $user->id)
+                ->where('event_id', $event->id)
+                ->exists() : false;
+
+            return response()->json([
+                'data' => [
+                    'event_id' => $event->id,
+                    'is_liked' => $isLiked,
+                    'likes_count' => $event->likes()->count()
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'data' => [
+                    'event_id' => $eventId ?? 0,
+                    'is_liked' => false,
+                    'likes_count' => 0
+                ]
+            ], 200);
+        }
+    }
+
+    /**
+     * Get liked events for a user
+     */
+    public function getUserLikedEvents(Request $request, $userId)
+    {
+        try {
+            $authUser = Auth::guard('sanctum')->user();
+
+            if (!$authUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized - Please login first',
+                    'error_code' => 'UNAUTHENTICATED'
+                ], 401);
+            }
+
+            $userId = (int) $userId;
+            if ($userId <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid user ID provided',
+                    'error_code' => 'INVALID_USER_ID'
+                ], 400);
+            }
+
+            if ($authUser->id !== $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Forbidden',
+                    'error_code' => 'FORBIDDEN'
+                ], 403);
+            }
+
+            $user = User::find($userId);
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found',
+                    'error_code' => 'USER_NOT_FOUND'
+                ], 404);
+            }
+
+            $likedEvents = $user->likedEvents()->with('club')->orderBy('date', 'desc')->get();
+
+            $data = $likedEvents->map(function ($event) {
+                $eventData = $event->toArray();
+                $eventData['is_liked'] = true;
+                $eventData['likes'] = $event->likes()->count();
+                return $eventData;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Liked events retrieved successfully',
+                'count' => $data->count(),
+                'data' => $data
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching user liked events', [
+                'user_id' => $userId ?? 'null',
+                'auth_user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch liked events',
+                'error_code' => 'FETCH_LIKED_EVENTS_FAILED'
             ], 500);
         }
     }
