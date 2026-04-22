@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\ClubController;
 use App\Http\Controllers\Api\RecommendationController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\TelegramController;
 use App\Models\Event;
 
@@ -78,6 +79,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // User Data Endpoints
     Route::get('/me/registrations', [AuthController::class, 'getUserRegistrations']);
     Route::get('/me/orders', [AuthController::class, 'getUserOrders']);
+
+    // Cart Endpoints
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'add']);
 
     // Telegram Bot Integration
     Route::prefix('telegram')->group(function () {
