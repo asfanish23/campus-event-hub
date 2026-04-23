@@ -11,12 +11,27 @@ use Illuminate\Support\Facades\Auth;
 
 class EventController extends Controller
 {
-    private function feedQuery()
+    private function baseEventQuery()
     {
         return Event::with('club')
-            ->whereDate('date', '>=', now()->toDateString())
             ->orderBy('date', 'asc')
             ->orderBy('start_time', 'asc');
+    }
+
+    private function feedQuery()
+    {
+        return $this->baseEventQuery()
+            ->whereDate('date', '>=', now()->toDateString());
+    }
+
+    private function formatEventData(Event $event, $user): array
+    {
+        $eventData = $event->toArray();
+        $eventData['event_date'] = $event->date?->toDateString();
+        $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
+        $eventData['likes'] = $event->likes()->count();
+
+        return $eventData;
     }
 
     /**
@@ -25,17 +40,20 @@ class EventController extends Controller
     public function index(Request $request)
     {
         try {
-            $events = $this->feedQuery()->get();
+            $query = $this->baseEventQuery();
+
+            if ($request->filled('selected_date')) {
+                $query->whereDate('date', $request->input('selected_date'));
+            } elseif (!$request->boolean('include_all')) {
+                $query->whereDate('date', '>=', now()->toDateString());
+            }
+
+            $events = $query->get();
 
             $user = Auth::guard('sanctum')->user();
             
             // Format events with like status if user is authenticated
-            $formattedEvents = $events->map(function ($event) use ($user) {
-                $eventData = $event->toArray();
-                $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
-                $eventData['likes'] = $event->likes()->count();
-                return $eventData;
-            });
+            $formattedEvents = $events->map(fn ($event) => $this->formatEventData($event, $user));
 
             return response()->json([
                 'data' => $formattedEvents,
@@ -58,6 +76,7 @@ class EventController extends Controller
             $user = Auth::guard('sanctum')->user();
 
             $eventData = $event->toArray();
+            $eventData['event_date'] = $event->date?->toDateString();
             $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
             $eventData['is_joined'] = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
             $eventData['likes'] = $event->likes()->count();
