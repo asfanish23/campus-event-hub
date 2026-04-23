@@ -11,16 +11,21 @@ use Illuminate\Support\Facades\Auth;
 
 class EventController extends Controller
 {
+    private function feedQuery()
+    {
+        return Event::with('club')
+            ->whereDate('date', '>=', now()->toDateString())
+            ->orderBy('date', 'asc')
+            ->orderBy('start_time', 'asc');
+    }
+
     /**
      * Get all events
      */
     public function index(Request $request)
     {
         try {
-            $events = Event::with('club')
-                ->whereIn('status', ['Upcoming', 'Currently Running'])
-                ->orderBy('date', 'asc')
-                ->get();
+            $events = $this->feedQuery()->get();
 
             $user = Auth::guard('sanctum')->user();
             
@@ -76,11 +81,11 @@ class EventController extends Controller
         try {
             $query = $request->input('q', '');
 
-            $events = Event::with('club')
-                ->where('name', 'like', "%$query%")
-                ->orWhere('description', 'like', "%$query%")
-                ->whereIn('status', ['Upcoming', 'Currently Running'])
-                ->orderBy('date', 'asc')
+            $events = $this->feedQuery()
+                ->where(function ($builder) use ($query) {
+                    $builder->where('name', 'like', "%{$query}%")
+                        ->orWhere('description', 'like', "%{$query}%");
+                })
                 ->get();
 
             return response()->json([
