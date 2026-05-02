@@ -110,6 +110,9 @@ class ClubProfileController extends Controller
         }
 
         $club->update($validated);
-        return back()->with('success', 'Club profile updated successfully!');
+
+        return redirect()
+            ->route('club-profile.show')
+            ->with('success', 'Club profile updated successfully.');
     }
 }
