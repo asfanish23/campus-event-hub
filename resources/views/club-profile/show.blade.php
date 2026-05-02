@@ -178,23 +178,31 @@
                     </div>
 
                     <!-- Social Media Links -->
+                    @php
+                        $socialLinks = [
+                            ['label' => 'Facebook', 'icon' => '📘', 'value' => $club->facebook_url],
+                            ['label' => 'Instagram', 'icon' => '📷', 'value' => $club->instagram_url],
+                            ['label' => 'Twitter/X', 'icon' => '𝕏', 'value' => $club->twitter_url],
+                            ['label' => 'YouTube', 'icon' => '▶️', 'value' => $club->youtube_url],
+                            ['label' => 'Threads', 'icon' => '🧵', 'value' => $club->threads_url],
+                            ['label' => 'TikTok', 'icon' => '🎵', 'value' => $club->tiktok_url],
+                        ];
+                        $populatedSocialLinks = array_filter($socialLinks, fn ($link) => !empty($link['value']));
+                    @endphp
+
+                    @if(count($populatedSocialLinks) > 0)
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Social Media Links</h3>
                         <div class="space-y-3">
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">📘 Facebook</label>
-                                <p class="text-sm text-gray-600">{{ $club->facebook_url ?? 'Not Set' }}</p>
-                            </div>
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">📷 Instagram</label>
-                                <p class="text-sm text-gray-600">{{ $club->instagram_url ?? 'Not Set' }}</p>
-                            </div>
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">𝕏 Twitter</label>
-                                <p class="text-sm text-gray-600">{{ $club->twitter_url ?? 'Not Set' }}</p>
-                            </div>
+                            @foreach($populatedSocialLinks as $link)
+                                <div>
+                                    <label class="text-sm font-semibold text-gray-700">{{ $link['icon'] }} {{ $link['label'] }}</label>
+                                    <p class="text-sm text-gray-600 break-all">{{ $link['value'] }}</p>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
+                    @endif
                 </div>
 
                 <!-- Instagram Auto-Posting Status -->

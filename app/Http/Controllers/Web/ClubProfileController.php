@@ -59,14 +59,23 @@ class ClubProfileController extends Controller
             'description' => 'required|string',
             'president_name' => 'required|string|max:255',
             'president_contact' => 'required|string|max:20',
-            'facebook_url' => 'nullable|string|max:255',
-            'instagram_url' => 'nullable|string|max:255',
-            'twitter_url' => 'nullable|string|max:255',
+            'facebook_url' => 'nullable|url|max:255',
+            'instagram_url' => 'nullable|url|max:255',
+            'twitter_url' => 'nullable|url|max:255',
+            'youtube_url' => 'nullable|url|max:255',
+            'threads_url' => 'nullable|url|max:255',
+            'tiktok_url' => 'nullable|url|max:255',
             'total_members' => 'nullable|integer|min:0',
             'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'background_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'background_position_v' => 'nullable|integer|min:-100|max:100',
         ]);
+
+        foreach (['facebook_url', 'instagram_url', 'twitter_url', 'youtube_url', 'threads_url', 'tiktok_url'] as $field) {
+            if (array_key_exists($field, $validated) && trim((string) $validated[$field]) === '') {
+                $validated[$field] = null;
+            }
+        }
 
         // Handle profile photo upload
         if ($request->hasFile('profile_photo')) {
