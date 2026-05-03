@@ -294,8 +294,8 @@
                                     $eventTime = $event->date->format('H:i');
                                 @endphp
                                 <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition event-card" data-name="{{ strtolower($event->name) }}" data-year="{{ $eventYear }}">
-                                    @if($event->featured_image)
-                                        <img src="{{ asset('storage/' . $event->featured_image) }}" alt="{{ $event->name }}" class="w-full h-40 object-cover">
+                                    @if($event->event_image)
+                                        <img src="{{ asset('storage/' . $event->event_image) }}" alt="{{ $event->name }}" class="w-full h-40 object-cover rounded-t-lg">
                                     @else
                                         <div class="w-full h-40 bg-gradient-to-br from-purple-300 to-purple-500 flex items-center justify-center text-4xl">
                                             📅
