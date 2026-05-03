@@ -98,4 +98,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/preferences', [TelegramController::class, 'updatePreferences']);
         Route::get('/events/thisweek', [TelegramController::class, 'getThisWeekEvents']);
     });
+
+    // Super Admin: User inspection endpoint (returns profile + activity)
+    Route::middleware('super_admin')->group(function () {
+        Route::get('/admin/users/{id}', [\App\Http\Controllers\Api\AdminUserController::class, 'show']);
+    });
 });

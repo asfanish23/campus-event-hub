@@ -217,6 +217,12 @@
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-600">{{ $user->created_at->format('M d, Y') }}</td>
                                             <td class="px-6 py-4 text-center space-x-2">
+                                                <button
+                                                    onclick="openUserDetailsModal({{ $user->id }})"
+                                                    class="text-gray-700 hover:text-gray-900 font-semibold text-sm hover:underline">
+                                                    View Details
+                                                </button>
+
                                                 @if($user->role !== 'super_admin')
                                                     <button 
                                                         onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
@@ -331,6 +337,57 @@
             </form>
         </div>
     </div>
+    
+        <!-- User Details Modal -->
+        <div id="userDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 max-w-3xl w-full mx-4">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">User Details</h3>
+                    <button onclick="closeUserDetailsModal()" class="text-gray-500 hover:text-gray-800">✕</button>
+                </div>
+
+                <div id="userDetailsContent" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 rounded p-4 border">
+                            <p class="text-xs text-gray-500 uppercase font-semibold mb-2">Basic Information</p>
+                            <p><span class="font-semibold">Name:</span> <span id="ud_name" class="text-gray-700"></span></p>
+                            <p><span class="font-semibold">Email:</span> <span id="ud_email" class="text-gray-700"></span></p>
+                            <p><span class="font-semibold">Role:</span> <span id="ud_role" class="inline-block px-2 py-1 rounded-full text-xs font-semibold"></span></p>
+                            <p><span class="font-semibold">Faculty / Program:</span> <span id="ud_faculty" class="text-gray-700"></span></p>
+                            <p><span class="font-semibold">Account Status:</span> <span id="ud_status" class="inline-block px-2 py-1 rounded-full text-xs font-semibold"></span></p>
+                            <p><span class="font-semibold">Joined:</span> <span id="ud_joined" class="text-gray-700"></span></p>
+                        </div>
+
+                        <div class="bg-gray-50 rounded p-4 border">
+                            <p class="text-xs text-gray-500 uppercase font-semibold mb-2">Activity</p>
+                            <p><span class="font-semibold">Total Events Joined:</span> <span id="ud_total_joined" class="text-gray-700"></span></p>
+                            <p><span class="font-semibold">Total Events Liked:</span> <span id="ud_total_liked" class="text-gray-700"></span></p>
+                            <p><span class="font-semibold">Last Active:</span> <span id="ud_last_active" class="text-gray-700"></span></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded p-4 border max-h-56 overflow-auto">
+                            <p class="text-xs text-gray-500 uppercase font-semibold mb-2">Events Joined</p>
+                            <ul id="ud_joined_list" class="space-y-2 text-sm text-gray-700"></ul>
+                        </div>
+
+                        <div class="bg-white rounded p-4 border max-h-56 overflow-auto">
+                            <p class="text-xs text-gray-500 uppercase font-semibold mb-2">Events Liked</p>
+                            <ul id="ud_liked_list" class="space-y-2 text-sm text-gray-700"></ul>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 justify-end">
+                        <form id="ud_delete_form" method="POST" action="" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete User</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <script>
         function openRejectModal(userId) {
@@ -351,6 +408,85 @@
 
         function closeEditRoleModal() {
             document.getElementById('editRoleModal').classList.add('hidden');
+        }
+
+        // User Details modal: fetch /api/admin/users/{id}
+        async function openUserDetailsModal(userId) {
+            document.getElementById('userDetailsModal').classList.remove('hidden');
+
+            // clear
+            document.getElementById('ud_name').textContent = 'Loading...';
+            document.getElementById('ud_email').textContent = '';
+            document.getElementById('ud_role').textContent = '';
+            document.getElementById('ud_faculty').textContent = '';
+            document.getElementById('ud_status').textContent = '';
+            document.getElementById('ud_joined').textContent = '';
+            document.getElementById('ud_total_joined').textContent = '';
+            document.getElementById('ud_total_liked').textContent = '';
+            document.getElementById('ud_last_active').textContent = '';
+            document.getElementById('ud_joined_list').innerHTML = '';
+            document.getElementById('ud_liked_list').innerHTML = '';
+
+            try {
+                const res = await fetch(`/api/admin/users/${userId}`, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
+
+                const b = data.basic || {};
+                const a = data.activity || {};
+
+                document.getElementById('ud_name').textContent = b.name || '-';
+                document.getElementById('ud_email').textContent = b.email || '-';
+                document.getElementById('ud_role').textContent = b.role || '-';
+                // badge styling for role
+                const roleEl = document.getElementById('ud_role');
+                roleEl.className = 'inline-block px-2 py-1 rounded-full text-xs font-semibold';
+                if (b.role === 'super_admin') roleEl.classList.add('bg-red-100','text-red-700');
+                else if (b.role === 'admin') roleEl.classList.add('bg-blue-100','text-blue-700');
+                else roleEl.classList.add('bg-gray-100','text-gray-700');
+
+                document.getElementById('ud_faculty').textContent = b.faculty_or_program || '-';
+
+                document.getElementById('ud_status').textContent = b.account_status || '-';
+                const statusEl = document.getElementById('ud_status');
+                statusEl.className = 'inline-block px-2 py-1 rounded-full text-xs font-semibold';
+                if ((b.account_status||'').includes('pending')) statusEl.classList.add('bg-orange-100','text-orange-700');
+                else if ((b.account_status||'').includes('approved')) statusEl.classList.add('bg-green-100','text-green-700');
+                else if ((b.account_status||'').includes('rejected')) statusEl.classList.add('bg-red-100','text-red-700');
+                else statusEl.classList.add('bg-gray-100','text-gray-700');
+
+                document.getElementById('ud_joined').textContent = b.joined_date || '-';
+
+                document.getElementById('ud_total_joined').textContent = a.total_events_joined ?? 0;
+                document.getElementById('ud_total_liked').textContent = a.total_events_liked ?? 0;
+                document.getElementById('ud_last_active').textContent = a.last_active_date || '-';
+
+                // joined events
+                const jl = document.getElementById('ud_joined_list');
+                (data.joined_events || []).forEach(ev => {
+                    const li = document.createElement('li');
+                    li.textContent = `${ev.event_name || 'N/A'} ${ev.event_date ? '(' + ev.event_date + ')' : ''}`;
+                    jl.appendChild(li);
+                });
+
+                const ll = document.getElementById('ud_liked_list');
+                (data.liked_events || []).forEach(ev => {
+                    const li = document.createElement('li');
+                    li.textContent = `${ev.event_name || 'N/A'} ${ev.event_date ? '(' + ev.event_date + ')' : ''}`;
+                    ll.appendChild(li);
+                });
+
+                // set delete form action to the existing web route
+                const deleteForm = document.getElementById('ud_delete_form');
+                deleteForm.action = `/super-admin/users/${userId}`;
+
+            } catch (err) {
+                document.getElementById('ud_name').textContent = 'Error loading user';
+            }
+        }
+
+        function closeUserDetailsModal() {
+            document.getElementById('userDetailsModal').classList.add('hidden');
         }
     </script>
 </body>
