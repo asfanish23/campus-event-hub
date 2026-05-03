@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Event extends Model
 {
@@ -54,6 +55,23 @@ class Event extends Model
         'instagram_scheduled_at' => 'datetime',
         'instagram_scheduled_posted' => 'boolean',
     ];
+
+    /**
+     * Normalize status to lowercase for API consistency.
+     * Maps database enum values to normalized mobile app expectations:
+     * - 'Upcoming' → 'upcoming'
+     * - 'Currently Running' → 'ongoing'
+     * - 'Completed' → 'completed'
+     */
+    protected function status(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => match (strtolower($value)) {
+                'currently running' => 'ongoing',
+                default => strtolower($value),
+            },
+        );
+    }
 
     public function club()
     {
