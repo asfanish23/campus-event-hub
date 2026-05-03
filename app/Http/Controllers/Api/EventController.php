@@ -28,6 +28,8 @@ class EventController extends Controller
     {
         $eventData = $event->toArray();
         $eventData['event_date'] = $event->date?->toDateString();
+        // Use computed status instead of database status for accurate filtering
+        $eventData['status'] = $event->getComputedStatus();
         $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
         $eventData['likes'] = $event->likes()->count();
 
@@ -50,9 +52,17 @@ class EventController extends Controller
 
             $events = $query->get();
 
+            // Filter by computed status if provided
+            if ($request->filled('status')) {
+                $requestedStatus = strtolower($request->input('status'));
+                $events = $events->filter(function ($event) use ($requestedStatus) {
+                    return $event->getComputedStatus() === $requestedStatus;
+                });
+            }
+
             $user = Auth::guard('sanctum')->user();
             
-            // Format events with like status if user is authenticated
+            // Format events with like status and computed status
             $formattedEvents = $events->map(fn ($event) => $this->formatEventData($event, $user));
 
             return response()->json([
@@ -77,6 +87,7 @@ class EventController extends Controller
 
             $eventData = $event->toArray();
             $eventData['event_date'] = $event->date?->toDateString();
+            $eventData['status'] = $event->getComputedStatus();
             $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
             $eventData['is_joined'] = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
             $eventData['likes'] = $event->likes()->count();

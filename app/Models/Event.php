@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Event extends Model
 {
@@ -55,23 +54,6 @@ class Event extends Model
         'instagram_scheduled_at' => 'datetime',
         'instagram_scheduled_posted' => 'boolean',
     ];
-
-    /**
-     * Normalize status to lowercase for API consistency.
-     * Maps database enum values to normalized mobile app expectations:
-     * - 'Upcoming' → 'upcoming'
-     * - 'Currently Running' → 'ongoing'
-     * - 'Completed' → 'completed'
-     */
-    protected function status(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => match (strtolower($value)) {
-                'currently running' => 'ongoing',
-                default => strtolower($value),
-            },
-        );
-    }
 
     public function club()
     {
@@ -136,6 +118,47 @@ class Event extends Model
         // Sync if never synced or last sync was more than 1 hour ago
         return is_null($this->instagram_last_synced_at) || 
                $this->instagram_last_synced_at->diffInMinutes(now()) >= 60;
+    }
+
+    /**
+     * Get the computed/actual status of the event based on current date/time.
+     * Returns: 'upcoming', 'ongoing', or 'completed'
+     * 
+     * This is independent of the database status field - it computes the real status.
+     */
+    public function getComputedStatus(): string
+    {
+        $now = now();
+        $eventDate = $this->date; // Carbon date object
+        $startTime = $this->start_time; // Carbon time object
+        $endTime = $this->end_time; // Carbon time object
+
+        // If event date is in the future, it's upcoming
+        if ($eventDate->toDateString() > $now->toDateString()) {
+            return 'upcoming';
+        }
+
+        // If event date is in the past, it's completed
+        if ($eventDate->toDateString() < $now->toDateString()) {
+            return 'completed';
+        }
+
+        // Event is today - check times
+        if ($eventDate->toDateString() === $now->toDateString()) {
+            // Create full datetime by combining date with times
+            $startDateTime = $eventDate->copy()->setTimeFromTimeString($startTime->format('H:i:s'));
+            $endDateTime = $eventDate->copy()->setTimeFromTimeString($endTime->format('H:i:s'));
+
+            if ($now < $startDateTime) {
+                return 'upcoming';
+            } elseif ($now >= $startDateTime && $now < $endDateTime) {
+                return 'ongoing';
+            } else {
+                return 'completed';
+            }
+        }
+
+        return 'upcoming';
     }
 
     /**
