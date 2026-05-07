@@ -21,9 +21,9 @@
             <div>
                 <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4">
                     <div class="h-96 bg-gray-200 flex items-center justify-center">
-                        @if($product->media->first())
+                        @if($product->primary_image_url)
                             <img id="main-image" 
-                                 src="{{ asset('storage/' . $product->media->first()->image_path) }}" 
+                                 src="{{ $product->primary_image_url }}"
                                  alt="{{ $product->name }}"
                                  class="w-full h-full object-cover">
                         @else
@@ -36,10 +36,12 @@
                 @if($product->media->count() > 1)
                     <div class="flex gap-2 overflow-x-auto">
                         @foreach($product->media as $media)
-                            <img src="{{ asset('storage/' . $media->image_path) }}" 
-                                 alt="Product image"
-                                 class="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-75 transition"
-                                 onclick="document.getElementById('main-image').src = '{{ asset('storage/' . $media->image_path) }}'">
+                            @if($media->file_type === 'photo' && $media->url)
+                                <img src="{{ $media->url }}"
+                                     alt="Product image"
+                                     class="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-75 transition"
+                                     onclick="document.getElementById('main-image').src = '{{ $media->url }}'">
+                            @endif
                         @endforeach
                     </div>
                 @endif
@@ -101,7 +103,7 @@
                             </div>
                         </div>
 
-                        <button type="button" onclick="addProductToCart({{ $product->id }}, '{{ $product->name }}', {{ $product->price }}, '{{ $product->media->first()?->image_path ?? 'default.jpg' }}')" 
+                        <button type="button" onclick="addProductToCart({{ $product->id }}, '{{ $product->name }}', {{ $product->price }}, '{{ $product->primary_image_path ?? 'default.jpg' }}')"
                                 class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold text-lg mb-3">
                             🛒 Add to Cart
                         </button>
@@ -146,8 +148,8 @@
                     @foreach($relatedProducts as $related)
                         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
                             <div class="h-40 bg-gray-200">
-                                @if($related->media->first())
-                                    <img src="{{ asset('storage/' . $related->media->first()->image_path) }}" 
+                                @if($related->primary_image_url)
+                                    <img src="{{ $related->primary_image_url }}"
                                          alt="{{ $related->name }}"
                                          class="w-full h-full object-cover">
                                 @endif
@@ -161,7 +163,7 @@
                                         View
                                     </a>
                                     @if($related->stock > 0)
-                                        <button onclick="addToCart({{ $related->id }}, '{{ $related->name }}', {{ $related->price }}, '{{ $related->media->first()?->image_path ?? 'default.jpg' }}')" 
+                                        <button onclick="addToCart({{ $related->id }}, '{{ $related->name }}', {{ $related->price }}, '{{ $related->primary_image_path ?? 'default.jpg' }}')"
                                                 class="flex-1 px-3 py-2 bg-purple-600 text-white rounded text-sm font-semibold hover:bg-purple-700 transition">
                                             Add
                                         </button>

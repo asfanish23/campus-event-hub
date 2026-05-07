@@ -79,8 +79,8 @@
                     <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300">
                         {{-- Product Image --}}
                         <div class="relative h-48 bg-gray-200 overflow-hidden">
-                            @if($product->media->first())
-                                <img src="{{ asset('storage/' . $product->media->first()->image_path) }}" 
+                            @if($product->primary_image_url)
+                                <img src="{{ $product->primary_image_url }}"
                                      alt="{{ $product->name }}"
                                      class="w-full h-full object-cover hover:scale-105 transition duration-300">
                             @else
@@ -121,7 +121,7 @@
                                     👁️ View Details
                                 </a>
                                 @if($product->stock > 0)
-                                    <button onclick="addToCart({{ $product->id }}, '{{ $product->name }}', {{ $product->price }}, '{{ $product->media->first()?->image_path ?? 'default.jpg' }}')" 
+                                    <button onclick="addToCart({{ $product->id }}, '{{ $product->name }}', {{ $product->price }}, '{{ $product->primary_image_path ?? 'default.jpg' }}')"
                                             class="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold text-sm">
                                         🛒 Add to Cart
                                     </button>
