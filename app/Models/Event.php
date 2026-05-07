@@ -133,6 +133,14 @@ class Event extends Model
         $startTime = $this->start_time; // Carbon time object
         $endTime = $this->end_time; // Carbon time object
 
+        if (!$eventDate) {
+            return 'upcoming';
+        }
+
+        if (!$startTime || !$endTime) {
+            return $eventDate->isPast() ? 'completed' : 'upcoming';
+        }
+
         // If event date is in the future, it's upcoming
         if ($eventDate->toDateString() > $now->toDateString()) {
             return 'upcoming';

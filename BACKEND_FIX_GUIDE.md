@@ -150,6 +150,23 @@ static const String baseUrl = 'https://aseems.ddns.net/api';
 
 ## 🐛 Troubleshooting
 
+### Browser shows "Your connection is not private"
+- **Cause**: The HTTPS certificate for `aseems.ddns.net` has expired.
+- **Observed on**: `CN=aseems.ddns.net`, issued by `Let's Encrypt`, expired on `2026-05-06`.
+- **Fix**: Renew the certificate on the Ubuntu/nginx server, then reload nginx.
+
+```bash
+sudo certbot renew --nginx
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If renewal does not pick up the domain automatically, issue a new cert:
+
+```bash
+sudo certbot --nginx -d aseems.ddns.net
+```
+
 ### "Connection refused" error
 - **Fix**: Start MySQL in Laragon (MySQL → Start)
 

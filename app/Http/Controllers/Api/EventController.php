@@ -18,6 +18,40 @@ class EventController extends Controller
             ->orderBy('start_time', 'asc');
     }
 
+    private function safeLikesCount(Event $event): int
+    {
+        try {
+            return $event->likes()->count();
+        } catch (\Throwable $e) {
+            \Log::warning('Unable to count event likes', [
+                'event_id' => $event->id,
+                'event_name' => $event->name ?? null,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return 0;
+        }
+    }
+
+    private function safeIsLiked(Event $event, $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        try {
+            return $user->likedEvents()->where('event_id', $event->id)->exists();
+        } catch (\Throwable $e) {
+            \Log::warning('Unable to resolve event like state', [
+                'event_id' => $event->id,
+                'user_id' => $user->id,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     private function feedQuery()
     {
         return $this->baseEventQuery()
@@ -30,8 +64,8 @@ class EventController extends Controller
         $eventData['event_date'] = $event->date?->toDateString();
         // Use computed status instead of database status for accurate filtering
         $eventData['status'] = $event->getComputedStatus();
-        $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
-        $eventData['likes'] = $event->likes()->count();
+        $eventData['is_liked'] = $this->safeIsLiked($event, $user);
+        $eventData['likes'] = $this->safeLikesCount($event);
 
         return $eventData;
     }
@@ -63,7 +97,21 @@ class EventController extends Controller
             $user = Auth::guard('sanctum')->user();
             
             // Format events with like status and computed status
-            $formattedEvents = $events->map(fn ($event) => $this->formatEventData($event, $user));
+            $formattedEvents = $events->map(function ($event) use ($user) {
+                try {
+                    return $this->formatEventData($event, $user);
+                } catch (\Throwable $e) {
+                    \Log::warning('Skipping malformed event row in API response', [
+                        'event_id' => $event->id ?? null,
+                        'event_name' => $event->name ?? null,
+                        'error_message' => $e->getMessage(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ]);
+
+                    return null;
+                }
+            })->filter()->values();
 
             return response()->json([
                 'data' => $formattedEvents,
@@ -88,9 +136,9 @@ class EventController extends Controller
             $eventData = $event->toArray();
             $eventData['event_date'] = $event->date?->toDateString();
             $eventData['status'] = $event->getComputedStatus();
-            $eventData['is_liked'] = $user ? $user->likedEvents()->where('event_id', $event->id)->exists() : false;
+            $eventData['is_liked'] = $this->safeIsLiked($event, $user);
             $eventData['is_joined'] = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
-            $eventData['likes'] = $event->likes()->count();
+            $eventData['likes'] = $this->safeLikesCount($event);
             $eventData['joined_count'] = $event->registrations()->count();
 
             return response()->json([
@@ -671,7 +719,7 @@ class EventController extends Controller
             $data = $likedEvents->map(function ($event) {
                 $eventData = $event->toArray();
                 $eventData['is_liked'] = true;
-                $eventData['likes'] = $event->likes()->count();
+                $eventData['likes'] = $this->safeLikesCount($event);
                 return $eventData;
             });
 
