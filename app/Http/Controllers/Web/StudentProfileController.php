@@ -53,11 +53,27 @@ class StudentProfileController extends Controller
                 'phone' => 'nullable|string|max:20',
                 'student_id' => 'nullable|string|max:50',
                 'bio' => 'nullable|string|max:500',
-                'address' => 'nullable|string|max:255',
+                'address_line_1' => 'nullable|string|max:255',
+                'address_line_2' => 'nullable|string|max:255',
+                'state' => 'nullable|string|max:100',
                 'city' => 'nullable|string|max:100',
                 'country' => 'nullable|string|max:100',
                 'postal_code' => 'nullable|string|max:20',
             ]);
+
+            $address = null;
+            if ($request->filled('address_line_1')) {
+                $address = trim($request->address_line_1);
+                if ($request->filled('address_line_2')) {
+                    $address .= ', ' . trim($request->address_line_2);
+                }
+            }
+
+            unset($validated['address_line_1'], $validated['address_line_2']);
+            $validated['address'] = $address;
+            if ($request->filled('state')) {
+                $validated['country'] = 'Malaysia';
+            }
 
             $user->update($validated);
 

@@ -98,6 +98,10 @@
                         <label class="text-gray-700 font-semibold mb-2 block">City</label>
                         <p class="text-gray-600 p-3 bg-gray-50 rounded-lg">{{ $user->city ?? 'Not provided' }}</p>
                     </div>
+                    <div>
+                        <label class="text-gray-700 font-semibold mb-2 block">State</label>
+                        <p class="text-gray-600 p-3 bg-gray-50 rounded-lg">{{ $user->state ?? 'Not provided' }}</p>
+                    </div>
                     <div class="md:col-span-2">
                         <label class="text-gray-700 font-semibold mb-2 block">Address</label>
                         <p class="text-gray-600 p-3 bg-gray-50 rounded-lg">{{ $user->address ?? 'Not provided' }}</p>

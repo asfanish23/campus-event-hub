@@ -27,6 +27,7 @@ class User extends Authenticatable
         'bio',
         'profile_photo',
         'address',
+        'state',
         'city',
         'country',
         'postal_code',

@@ -39,6 +39,11 @@
             </form>
 
             {{-- Profile Information Form --}}
+            @php
+                $addressParts = array_map('trim', explode(',', (string) old('address', $user->address ?? '')));
+                $addressLine1 = $addressParts[0] ?? '';
+                $addressLine2 = count($addressParts) > 1 ? implode(', ', array_slice($addressParts, 1)) : '';
+            @endphp
             <form action="{{ route('student.profile.update') }}" method="POST">
                 @csrf
 
@@ -98,32 +103,48 @@
                         @enderror
                     </div>
 
-                    {{-- Address --}}
+                    {{-- Address Line 1 --}}
                     <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Address</label>
-                        <input type="text" name="address" value="{{ old('address', $user->address) }}" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('address') border-red-500 @enderror"
+                        <label class="block text-gray-700 font-semibold mb-2">Address Line 1</label>
+                        <input type="text" name="address_line_1" value="{{ old('address_line_1', $addressLine1) }}"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('address_line_1') border-red-500 @enderror"
                                placeholder="Street address">
-                        @error('address')
+                        @error('address_line_1')
                             <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    {{-- City and Country --}}
-                    <div class="grid grid-cols-2 gap-4">
+                    {{-- Address Line 2 --}}
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Address Line 2 (Optional)</label>
+                        <input type="text" name="address_line_2" value="{{ old('address_line_2', $addressLine2) }}"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('address_line_2') border-red-500 @enderror"
+                               placeholder="Apartment, unit, building (optional)">
+                        @error('address_line_2')
+                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    {{-- State and City --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">City</label>
-                            <input type="text" name="city" value="{{ old('city', $user->city) }}" 
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('city') border-red-500 @enderror">
-                            @error('city')
+                            <label class="block text-gray-700 font-semibold mb-2">State</label>
+                            <select id="state_select" name="state"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('state') border-red-500 @enderror">
+                                <option value="">Select your state</option>
+                            </select>
+                            @error('state')
                                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                             @enderror
                         </div>
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">Country</label>
-                            <input type="text" name="country" value="{{ old('country', $user->country) }}" 
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('country') border-red-500 @enderror">
-                            @error('country')
+                            <label class="block text-gray-700 font-semibold mb-2">City</label>
+                            <select id="city_select" name="city"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('city') border-red-500 @enderror"
+                                    disabled>
+                                <option value="">Select state first</option>
+                            </select>
+                            @error('city')
                                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                             @enderror
                         </div>
@@ -132,12 +153,17 @@
                     {{-- Postal Code --}}
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Postal Code</label>
-                        <input type="text" name="postal_code" value="{{ old('postal_code', $user->postal_code) }}" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('postal_code') border-red-500 @enderror">
+                        <select id="postcode_select" name="postal_code"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('postal_code') border-red-500 @enderror"
+                                disabled>
+                            <option value="">Select city first</option>
+                        </select>
                         @error('postal_code')
                             <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <input type="hidden" name="country" value="Malaysia">
                 </div>
 
                 <div class="flex gap-4 mt-8">
@@ -152,4 +178,140 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const stateSelect = document.getElementById('state_select');
+    const citySelect = document.getElementById('city_select');
+    const postcodeSelect = document.getElementById('postcode_select');
+
+    const oldState = @json(old('state', $user->state));
+    const oldCity = @json(old('city', $user->city));
+    const oldPostcode = @json(old('postal_code', $user->postal_code));
+
+    let malaysiaData = [];
+
+    const normalizeStateName = (name) => {
+        if (!name) return '';
+        const map = {
+            'Wp Kuala Lumpur': 'Kuala Lumpur',
+            'Wp Putrajaya': 'Putrajaya',
+            'Wp Labuan': 'Labuan',
+            'Pulau Pinang': 'Penang',
+        };
+        return map[name] || name;
+    };
+
+    const createOption = (value, label) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        return option;
+    };
+
+    const resetSelect = (selectEl, placeholder, disabled = true) => {
+        selectEl.innerHTML = '';
+        selectEl.appendChild(createOption('', placeholder));
+        selectEl.disabled = disabled;
+    };
+
+    const findStateByCityAndPostcode = (city, postcode) => {
+        if (!city) return null;
+        for (const state of malaysiaData) {
+            const cityData = (state.city || []).find((item) => item.name === city);
+            if (!cityData) continue;
+            if (!postcode || (cityData.postcode || []).map(String).includes(String(postcode))) {
+                return normalizeStateName(state.name);
+            }
+        }
+        return null;
+    };
+
+    const populateStates = (selectedState = '') => {
+        const states = malaysiaData
+            .map((item) => normalizeStateName(item.name))
+            .sort((a, b) => a.localeCompare(b));
+
+        resetSelect(stateSelect, 'Select your state', false);
+        states.forEach((state) => stateSelect.appendChild(createOption(state, state)));
+
+        if (selectedState) {
+            stateSelect.value = selectedState;
+        }
+    };
+
+    const populateCities = (stateName, selectedCity = '') => {
+        const stateData = malaysiaData.find(
+            (item) => normalizeStateName(item.name) === stateName
+        );
+
+        if (!stateData) {
+            resetSelect(citySelect, 'Select state first', true);
+            resetSelect(postcodeSelect, 'Select city first', true);
+            return;
+        }
+
+        resetSelect(citySelect, 'Select your city', false);
+        const cities = (stateData.city || []).map((item) => item.name).sort((a, b) => a.localeCompare(b));
+        cities.forEach((city) => citySelect.appendChild(createOption(city, city)));
+
+        if (selectedCity) {
+            citySelect.value = selectedCity;
+        }
+    };
+
+    const populatePostcodes = (stateName, cityName, selectedPostcode = '') => {
+        const stateData = malaysiaData.find(
+            (item) => normalizeStateName(item.name) === stateName
+        );
+        const cityData = stateData?.city?.find((item) => item.name === cityName);
+
+        if (!cityData) {
+            resetSelect(postcodeSelect, 'Select city first', true);
+            return;
+        }
+
+        const postcodes = (cityData.postcode || []).map((value) => String(value));
+        resetSelect(postcodeSelect, postcodes.length === 1 ? 'Auto-filled postcode' : 'Select postcode', false);
+
+        postcodes.forEach((postcode) => postcodeSelect.appendChild(createOption(postcode, postcode)));
+
+        if (postcodes.length === 1) {
+            postcodeSelect.value = postcodes[0];
+        } else if (selectedPostcode) {
+            postcodeSelect.value = selectedPostcode;
+        }
+    };
+
+    try {
+        const response = await fetch('/data/all.json');
+        const payload = await response.json();
+        malaysiaData = payload.state || [];
+
+        const inferredState = oldState || findStateByCityAndPostcode(oldCity, oldPostcode) || '';
+        populateStates(inferredState);
+
+        if (stateSelect.value) {
+            populateCities(stateSelect.value, oldCity || '');
+        }
+
+        if (stateSelect.value && citySelect.value) {
+            populatePostcodes(stateSelect.value, citySelect.value, oldPostcode || '');
+        }
+
+        stateSelect.addEventListener('change', () => {
+            populateCities(stateSelect.value, '');
+            resetSelect(postcodeSelect, 'Select city first', true);
+        });
+
+        citySelect.addEventListener('change', () => {
+            populatePostcodes(stateSelect.value, citySelect.value, '');
+        });
+    } catch (error) {
+        resetSelect(stateSelect, 'Unable to load states', true);
+        resetSelect(citySelect, 'Unable to load cities', true);
+        resetSelect(postcodeSelect, 'Unable to load postcodes', true);
+    }
+});
+</script>
 @endsection
