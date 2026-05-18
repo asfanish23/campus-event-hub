@@ -5,122 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Users | Campus Event Hub</title>
     @vite('resources/css/app.css')
-    <style>
-        .admin-action-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.375rem;
-            padding: 0.5rem 0.875rem;
-            border-radius: 0.5rem;
-            font-size: 0.75rem;
-            line-height: 1rem;
-            font-weight: 600;
-            border: 1px solid transparent;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-            transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-        }
-
-        .admin-action-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
-        }
-
-        .admin-action-btn:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 2px #8b5cf6;
-        }
-
-        .admin-action-btn--view {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-color: #bfdbfe;
-        }
-
-        .admin-action-btn--edit {
-            background: #fffbeb;
-            color: #b45309;
-            border-color: #fde68a;
-        }
-
-        .admin-action-btn--delete {
-            background: #fef2f2;
-            color: #b91c1c;
-            border-color: #fecaca;
-        }
-
-        .admin-action-btn--view:hover {
-            background: #dbeafe;
-        }
-
-        .admin-action-btn--edit:hover {
-            background: #fef3c7;
-        }
-
-        .admin-action-btn--delete:hover {
-            background: #fee2e2;
-        }
-
-        .admin-badge {
-            display: inline-flex;
-            align-items: center;
-            border-radius: 9999px;
-            padding: 0.25rem 0.75rem;
-            font-size: 0.75rem;
-            line-height: 1rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .admin-badge--role-super {
-            background: #fee2e2;
-            color: #b91c1c;
-        }
-
-        .admin-badge--role-admin {
-            background: #dbeafe;
-            color: #1d4ed8;
-        }
-
-        .admin-badge--role-student {
-            background: #f1f5f9;
-            color: #334155;
-        }
-
-        .admin-badge--club {
-            background: #f3e8ff;
-            color: #7c3aed;
-        }
-
-        .admin-badge--active,
-        .admin-badge--approved {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .admin-badge--pending {
-            background: #ffedd5;
-            color: #c2410c;
-        }
-
-        .admin-badge--rejected {
-            background: #fee2e2;
-            color: #b91c1c;
-        }
-
-        .admin-badge--neutral {
-            background: #f1f5f9;
-            color: #475569;
-        }
-
-        .admin-table-row {
-            transition: background-color 150ms ease, transform 150ms ease;
-        }
-
-        .admin-table-row:hover {
-            background: #f8fafc;
-        }
-    </style>
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen">
@@ -333,11 +217,11 @@
                                             </td>
                                             <td class="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{{ $user->created_at->format('M d, Y') }}</td>
                                             <td class="px-6 py-4 text-center">
-                                                <div class="flex items-center justify-center gap-2 flex-wrap">
+                                                <div class="flex justify-center gap-2 flex-wrap">
                                                     <button
                                                         type="button"
                                                         onclick="openUserDetailsModal({{ $user->id }})"
-                                                        class="admin-action-btn admin-action-btn--view">
+                                                        class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition">
                                                         View
                                                     </button>
 
@@ -345,20 +229,20 @@
                                                         <button 
                                                             type="button"
                                                             onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
-                                                            class="admin-action-btn admin-action-btn--edit">
+                                                            class="px-3 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-700 transition">
                                                             Edit
                                                         </button>
                                                     @endif
 
                                                     @if($user->role === 'super_admin')
-                                                        <span class="admin-action-btn bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed">
+                                                        <span class="px-3 py-1 bg-gray-300 text-gray-700 rounded text-xs font-medium cursor-not-allowed">
                                                             Delete
                                                         </span>
                                                     @else
                                                         <form method="POST" action="{{ route('super-admin.delete-user', $user) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                            <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition">
                                                                 Delete
                                                             </button>
                                                         </form>
