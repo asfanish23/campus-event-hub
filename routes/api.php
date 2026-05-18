@@ -9,15 +9,45 @@ use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\TelegramController;
+use App\Http\Controllers\Api\ClubFollowController;
+use App\Http\Controllers\Api\ClubNotificationController;
 use App\Models\Event;
 
 // Health check endpoint (no auth required)
 Route::get('/health', function () {
+    $requiredPaths = [
+        'storage' => storage_path(),
+        'framework_cache' => storage_path('framework/cache/data'),
+        'framework_sessions' => storage_path('framework/sessions'),
+        'framework_views' => storage_path('framework/views'),
+        'bootstrap_cache' => base_path('bootstrap/cache'),
+        'logs' => storage_path('logs'),
+    ];
+
+    $storageIssues = [];
+
+    foreach ($requiredPaths as $name => $path) {
+        if (! is_dir($path)) {
+            $storageIssues[] = $name . ' directory is missing';
+            continue;
+        }
+
+        if (! is_writable($path)) {
+            $storageIssues[] = $name . ' directory is not writable';
+        }
+    }
+
+    $status = empty($storageIssues) ? 'ok' : 'degraded';
+
     return response()->json([
-        'status' => 'ok',
+        'status' => $status,
         'message' => 'API is running',
+        'storage' => [
+            'status' => $status,
+            'issues' => $storageIssues,
+        ],
         'timestamp' => now()
-    ]);
+    ], $status === 'ok' ? 200 : 503);
 });
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -74,8 +104,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{event}/leave', [EventController::class, 'leave']);
     });
 
+    Route::post('/clubs/{club}/follow', [ClubFollowController::class, 'follow']);
+    Route::delete('/clubs/{club}/follow', [ClubFollowController::class, 'unfollow']);
+
     Route::get('likes', [RecommendationController::class, 'getUserLikes']);
     Route::get('/users/{user}/liked-events', [EventController::class, 'getUserLikedEvents']);
+
+    Route::prefix('user')->group(function () {
+        Route::get('/followed-clubs', [ClubFollowController::class, 'followedClubs']);
+        Route::get('/followed-events', [ClubFollowController::class, 'followedEvents']);
+    });
+
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [ClubNotificationController::class, 'index']);
+        Route::post('/{notification}/read', [ClubNotificationController::class, 'markAsRead']);
+    });
 
     // User Data Endpoints
     Route::get('/me/registrations', [AuthController::class, 'getUserRegistrations']);

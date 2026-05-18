@@ -6,6 +6,24 @@
 
 set -e
 
+WEB_USER="${WEB_USER:-www-data}"
+
+run_as_web_user() {
+	if [ "$(id -un)" = "$WEB_USER" ]; then
+		"$@"
+	else
+		sudo -u "$WEB_USER" "$@"
+	fi
+}
+
+run_as_root_or_sudo() {
+	if [ "$(id -u)" -eq 0 ]; then
+		"$@"
+	else
+		sudo "$@"
+	fi
+}
+
 echo "Starting Campus Event Hub Deployment..."
 echo "=========================================="
 
@@ -22,32 +40,38 @@ echo "Latest changes pulled"
 # Clear application caches
 echo ""
 echo "Clearing application caches..."
-php artisan cache:clear
+run_as_web_user php artisan cache:clear
 echo "Application cache cleared"
 
 # Clear configuration cache
 echo ""
 echo "Clearing configuration cache..."
-php artisan config:clear
+run_as_web_user php artisan config:clear
 echo "Configuration cache cleared"
 
 # Clear view cache
 echo ""
 echo "Clearing view cache..."
-php artisan view:clear
+run_as_web_user php artisan view:clear
 echo "View cache cleared"
 
 # Fix file permissions
 echo ""
 echo "Fixing file permissions..."
-php fix-permissions.php
+run_as_root_or_sudo php fix-permissions.php
 echo "File permissions fixed"
 
 # Run any pending migrations
 echo ""
 echo "Running database migrations..."
-php artisan migrate --force
+run_as_web_user php artisan migrate --force
 echo "Database migrations completed"
+
+# Repair permissions again in case migrations or cache commands wrote new files
+echo ""
+echo "Re-checking file permissions after deployment tasks..."
+run_as_root_or_sudo php fix-permissions.php
+echo "Post-deploy permission pass complete"
 
 # Restart nginx
 echo ""

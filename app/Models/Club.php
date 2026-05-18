@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Club extends Model
@@ -56,6 +57,23 @@ class Club extends Model
     public function products()
     {
         return $this->hasMany(Product::class);
+    }
+
+    /**
+     * Users following this club.
+     */
+    public function followers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'club_followers')
+            ->withTimestamps();
+    }
+
+    /**
+     * Notifications created for this club.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(ClubNotification::class);
     }
 }
 

@@ -100,4 +100,20 @@ class User extends Authenticatable
     {
         return $this->hasOne(TelegramUserPreference::class);
     }
+
+    public function followedClubs()
+    {
+        return $this->belongsToMany(Club::class, 'club_followers')
+            ->withTimestamps();
+    }
+
+    public function clubFollowers()
+    {
+        return $this->hasMany(ClubFollower::class);
+    }
+
+    public function clubNotifications()
+    {
+        return $this->hasMany(ClubNotification::class);
+    }
 }

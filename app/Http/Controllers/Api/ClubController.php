@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Club;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 class ClubController extends Controller
@@ -14,7 +15,16 @@ class ClubController extends Controller
     public function index()
     {
         try {
-            $clubs = Club::with(['events', 'products.media'])->get();
+            $user = Auth::guard('sanctum')->user();
+            $followedClubIds = $user ? $user->followedClubs()->pluck('clubs.id')->all() : [];
+
+            $clubs = Club::with(['events', 'products.media'])
+                ->withCount('followers')
+                ->orderBy('name')
+                ->get()
+                ->map(function (Club $club) use ($followedClubIds) {
+                    return $this->formatClub($club, $followedClubIds);
+                });
             return response()->json([
                 'data' => $clubs,
                 'count' => $clubs->count()
@@ -33,10 +43,14 @@ class ClubController extends Controller
     public function show(Club $club)
     {
         try {
+            $user = Auth::guard('sanctum')->user();
+            $followedClubIds = $user ? $user->followedClubs()->pluck('clubs.id')->all() : [];
+
             // Eagerly load events and products with media
             $club->load('events', 'products.media');
+            $club->loadCount('followers');
             return response()->json([
-                'data' => $club
+                'data' => $this->formatClub($club, $followedClubIds)
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -54,19 +68,29 @@ class ClubController extends Controller
         try {
             $query = $request->query('q', '');
             $category = $request->query('category');
+            $user = Auth::guard('sanctum')->user();
+            $followedClubIds = $user ? $user->followedClubs()->pluck('clubs.id')->all() : [];
             
             $clubs = Club::query();
             
             if (!empty($query)) {
-                $clubs->where('name', 'LIKE', "%$query%")
-                      ->orWhere('description', 'LIKE', "%$query%");
+                $clubs->where(function ($builder) use ($query) {
+                    $builder->where('name', 'LIKE', "%$query%")
+                        ->orWhere('description', 'LIKE', "%$query%");
+                });
             }
             
             if (!empty($category) && $category !== 'All') {
                 $clubs->where('category', $category);
             }
             
-            $clubs = $clubs->with(['events', 'products.media'])->get();
+            $clubs = $clubs->with(['events', 'products.media'])
+                ->withCount('followers')
+                ->orderBy('name')
+                ->get()
+                ->map(function (Club $club) use ($followedClubIds) {
+                    return $this->formatClub($club, $followedClubIds);
+                });
             
             return response()->json([
                 'data' => $clubs,
@@ -97,5 +121,13 @@ class ClubController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function formatClub(Club $club, array $followedClubIds = []): array
+    {
+        return array_merge($club->toArray(), [
+            'followers_count' => $club->followers_count ?? $club->followers()->count(),
+            'is_following' => in_array($club->id, $followedClubIds, true),
+        ]);
     }
 }

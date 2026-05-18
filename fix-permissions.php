@@ -10,70 +10,103 @@ $basePath = __DIR__;
 echo "🔧 Fixing Campus Event Hub permissions...\n";
 echo "Base path: $basePath\n\n";
 
-$directories = [
-    'storage',
-    'storage/app',
-    'storage/app/public',
-    'storage/framework',
-    'storage/framework/cache',
-    'storage/framework/cache/data',
-    'storage/framework/sessions',
-    'storage/framework/views',
-    'storage/logs',
-    'bootstrap/cache',
-];
+require_once $basePath . '/bootstrap/ensure_runtime_paths.php';
 
-foreach ($directories as $dir) {
-    $fullPath = "$basePath/$dir";
-    if (is_dir($fullPath)) {
-        // Make directory writable
-        chmod($fullPath, 0775);
-        echo "✓ Fixed permissions for: $dir\n";
-    } else {
-        echo "⚠ Directory not found: $dir\n";
+$purgeRuntimeCache = in_array('--purge-cache', $argv ?? [], true) || in_array('--clear-cache', $argv ?? [], true);
+
+$report = campusEventHubEnsureRuntimePaths($basePath);
+
+if (! empty($report['created_directories'])) {
+    echo "✓ Created directories:\n";
+    foreach ($report['created_directories'] as $directory) {
+        echo "  - $directory\n";
     }
+    echo "\n";
 }
 
-// Fix all files in storage and bootstrap
-echo "\n📝 Fixing file permissions in storage and bootstrap directories...\n";
+if (! empty($report['updated_directories'])) {
+    echo "✓ Standardized permissions for directories:\n";
+    foreach ($report['updated_directories'] as $directory) {
+        echo "  - $directory\n";
+    }
+    echo "\n";
+}
 
-function makeWritable($path) {
-    if (is_dir($path)) {
-        foreach (glob($path . '/*') as $file) {
-            if (is_dir($file)) {
-                makeWritable($file);
-                chmod($file, 0775);
-            } else {
-                chmod($file, 0664);
+if (! empty($report['created_files'])) {
+    echo "✓ Ensured runtime files exist:\n";
+    foreach ($report['created_files'] as $file) {
+        echo "  - $file\n";
+    }
+    echo "\n";
+}
+
+if (! empty($report['warnings'])) {
+    echo "⚠ Warnings:\n";
+    foreach ($report['warnings'] as $warning) {
+        echo "  - $warning\n";
+    }
+    echo "\n";
+}
+
+function campusEventHubStandardizePermissions(string $path, bool $changeOwnership): void
+{
+    if (! is_dir($path)) {
+        return;
+    }
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+
+    foreach ($iterator as $item) {
+        $fullPath = $item->getPathname();
+
+        if ($item->isDir()) {
+            @chmod($fullPath, 02775);
+
+            if ($changeOwnership) {
+                @chown($fullPath, 'www-data');
+                @chgrp($fullPath, 'www-data');
             }
+
+            continue;
+        }
+
+        @chmod($fullPath, 0664);
+
+        if ($changeOwnership) {
+            @chown($fullPath, 'www-data');
+            @chgrp($fullPath, 'www-data');
         }
     }
 }
 
-makeWritable("$basePath/storage");
-makeWritable("$basePath/bootstrap/cache");
+echo "🛠 Standardizing existing storage and bootstrap cache permissions...\n";
 
-echo "✓ Fixed all file permissions\n";
+campusEventHubStandardizePermissions($basePath . '/storage', function_exists('posix_geteuid') && posix_geteuid() === 0);
+campusEventHubStandardizePermissions($basePath . '/bootstrap/cache', function_exists('posix_geteuid') && posix_geteuid() === 0);
 
-// Clear caches
-echo "\n🧹 Clearing caches...\n";
+echo "✓ Existing nested files and directories normalized\n\n";
 
-// Remove cache files
-$cacheFiles = glob("$basePath/storage/framework/cache/data/*");
-foreach ($cacheFiles as $file) {
-    if (is_file($file)) {
-        @unlink($file);
-        echo "✓ Removed cache file: " . basename($file) . "\n";
+if ($purgeRuntimeCache) {
+    echo "🧹 Purging file-based runtime cache...\n";
+
+    $cacheFiles = glob($basePath . '/storage/framework/cache/data/*') ?: [];
+    foreach ($cacheFiles as $file) {
+        if (is_file($file) && @unlink($file)) {
+            echo "✓ Removed cache file: " . basename($file) . "\n";
+        }
     }
-}
 
-// Remove view cache files
-$viewFiles = glob("$basePath/storage/framework/views/*");
-foreach ($viewFiles as $file) {
-    if (is_file($file)) {
-        @unlink($file);
-        echo "✓ Removed view file: " . basename($file) . "\n";
+    $viewFiles = glob($basePath . '/storage/framework/views/*') ?: [];
+    foreach ($viewFiles as $file) {
+        if (is_file($file) && @unlink($file)) {
+            echo "✓ Removed view cache file: " . basename($file) . "\n";
+        }
     }
+
+    echo "\n";
 }
 
 echo "\n✅ Permissions fixed successfully!\n";
