@@ -86,36 +86,71 @@
 
             <!-- Content -->
             <div class="p-8">
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <div class="p-6 border-b border-gray-200">
-                        <h3 class="text-lg font-bold text-gray-800">All Reviews</h3>
-                        <p class="text-sm text-gray-600">Manage all reviews on the platform</p>
+                <div class="admin-filters-card">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 class="admin-shell-title">Review Filters</h3>
+                            <p class="admin-shell-subtitle">Search reviews by event, reviewer, or comment</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full md:max-w-2xl">
+                            <input
+                                type="text"
+                                id="reviewSearchInput"
+                                placeholder="Search reviews..."
+                                class="admin-input"
+                            >
+
+                            <select id="reviewRatingFilter" class="admin-select">
+                                <option value="">All Ratings</option>
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-table-wrap">
+                    <div class="admin-table-header">
+                        <h3 class="admin-table-title">All Reviews</h3>
+                        <p class="admin-table-subtitle">Manage all reviews on the platform</p>
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 border-b border-gray-200">
+                        <table class="admin-table">
+                            <thead>
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Event</th>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Reviewer</th>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rating</th>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Comment</th>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
-                                    <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
+                                    <th>Event</th>
+                                    <th>Reviewer</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                    <th>Date</th>
+                                    <th class="is-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="reviewsTableBody">
                                 @forelse($reviews as $review)
-                                <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="px-6 py-4 text-sm text-gray-800">{{ $review->event->event_name ?? 'N/A' }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $review->user->name ?? 'N/A' }}</td>
-                                    <td class="px-6 py-4 text-sm">
+                                <tr
+                                    data-review-event="{{ strtolower($review->event->event_name ?? 'n/a') }}"
+                                    data-reviewer="{{ strtolower($review->user->name ?? 'n/a') }}"
+                                    data-review-comment="{{ strtolower($review->comment ?? '') }}"
+                                    data-review-rating="{{ $review->rating }}"
+                                >
+                                    <td class="font-semibold text-gray-800 whitespace-nowrap">{{ $review->event->event_name ?? 'N/A' }}</td>
+                                    <td class="text-gray-600 whitespace-nowrap">{{ $review->user->name ?? 'N/A' }}</td>
+                                    <td>
                                         <span class="text-yellow-500">{{ str_repeat('⭐', $review->rating) }}</span>
                                     </td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ Str::limit($review->comment, 50) }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $review->created_at->format('M d, Y') }}</td>
-                                    <td class="px-6 py-4 text-center">
-                                        <button class="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition">Delete</button>
+                                    <td class="text-gray-600">{{ Str::limit($review->comment, 50) }}</td>
+                                    <td class="text-gray-600 whitespace-nowrap">{{ $review->created_at->format('M d, Y') }}</td>
+                                    <td class="is-center">
+                                        <div class="admin-actions">
+                                            <button type="button" class="admin-action-btn admin-action-btn--view">View</button>
+                                            <button type="button" class="admin-action-btn admin-action-btn--delete" aria-disabled="true">Delete</button>
+                                        </div>
                                     </td>
                                 </tr>
                                 @empty
@@ -127,12 +162,46 @@
                         </table>
                     </div>
 
-                    <div class="p-6 border-t border-gray-200">
+                    <div class="admin-pagination">
                         {{ $reviews->links() }}
                     </div>
                 </div>
             </div>
         </main>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('reviewSearchInput');
+            const ratingFilter = document.getElementById('reviewRatingFilter');
+            const tableBody = document.getElementById('reviewsTableBody');
+
+            if (!searchInput || !ratingFilter || !tableBody) {
+                return;
+            }
+
+            const rows = Array.from(tableBody.querySelectorAll('tr[data-review-event]'));
+
+            const applyFilters = () => {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                const selectedRating = ratingFilter.value;
+
+                rows.forEach((row) => {
+                    const eventName = row.dataset.reviewEvent || '';
+                    const reviewer = row.dataset.reviewer || '';
+                    const comment = row.dataset.reviewComment || '';
+                    const rating = row.dataset.reviewRating || '';
+
+                    const matchesSearch = !searchTerm || eventName.includes(searchTerm) || reviewer.includes(searchTerm) || comment.includes(searchTerm);
+                    const matchesRating = !selectedRating || rating === selectedRating;
+
+                    row.style.display = matchesSearch && matchesRating ? '' : 'none';
+                });
+            };
+
+            searchInput.addEventListener('input', applyFilters);
+            ratingFilter.addEventListener('change', applyFilters);
+        });
+    </script>
 </body>
 </html>

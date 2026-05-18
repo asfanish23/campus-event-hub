@@ -98,176 +98,220 @@
                 </div>
                 @endif
 
-                <!-- Pending Applications Section -->
-                <div class="mb-12">
-                    <div class="flex items-center gap-3 mb-6">
-                        <h3 class="text-2xl font-bold text-gray-800">⏳ Pending Applications</h3>
+                <div class="admin-shell-card mb-6">
+                    <div class="admin-shell-header">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <h3 class="admin-shell-title">Pending Applications</h3>
+                                <p class="admin-shell-subtitle">Review club admin applications</p>
+                            </div>
+
+                            @if($pendingApplications->count() > 0)
+                                <span class="self-start px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
+                                    {{ $pendingApplications->count() }} awaiting review
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="p-6">
                         @if($pendingApplications->count() > 0)
-                            <span class="px-3 py-1 bg-orange-500 text-white rounded-full text-sm font-semibold">{{ $pendingApplications->count() }}</span>
+                            <div class="grid gap-4">
+                                @foreach($pendingApplications as $application)
+                                <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:bg-purple-50/40">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                        <div>
+                                            <p class="text-xs uppercase font-semibold text-gray-500">Name</p>
+                                            <p class="text-lg font-semibold text-gray-800">{{ $application->name }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase font-semibold text-gray-500">Email</p>
+                                            <p class="text-sm text-gray-700">{{ $application->email }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase font-semibold text-gray-500">Club</p>
+                                            <p class="text-sm font-semibold text-purple-600">{{ optional($application->club)->name ?? 'N/A' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs uppercase font-semibold text-gray-500">Applied</p>
+                                            <p class="text-sm text-gray-600">{{ $application->admin_submitted_at->format('M d, Y') }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-xl p-3 mb-4 border-l-4 border-orange-300">
+                                        <p class="text-xs uppercase font-semibold text-gray-500 mb-1">Application Reason</p>
+                                        <p class="text-sm text-gray-700">{{ $application->admin_application_reason }}</p>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <form method="POST" action="{{ route('super-admin.approve-admin', $application) }}" class="inline">
+                                            @csrf
+                                            <button type="submit" class="admin-action-btn admin-action-btn--view">
+                                                Approve
+                                            </button>
+                                        </form>
+                                        <button
+                                            type="button"
+                                            onclick="openRejectModal({{ $application->id }})"
+                                            class="admin-action-btn admin-action-btn--delete">
+                                            Reject
+                                        </button>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center">
+                                <p class="text-blue-700 font-semibold">✓ No pending applications</p>
+                            </div>
                         @endif
                     </div>
-
-                    @if($pendingApplications->count() > 0)
-                        <div class="grid gap-4">
-                            @foreach($pendingApplications as $application)
-                            <div class="bg-white rounded-lg shadow border-l-4 border-orange-500 p-6">
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                    <div>
-                                        <p class="text-xs text-gray-500 uppercase font-semibold">Name</p>
-                                        <p class="text-lg font-semibold text-gray-800">{{ $application->name }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500 uppercase font-semibold">Email</p>
-                                        <p class="text-sm text-gray-700">{{ $application->email }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500 uppercase font-semibold">Club</p>
-                                        <p class="text-sm font-semibold text-purple-600">{{ optional($application->club)->name ?? 'N/A' }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500 uppercase font-semibold">Applied</p>
-                                        <p class="text-sm text-gray-600">{{ $application->admin_submitted_at->format('M d, Y') }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="bg-gray-50 rounded p-3 mb-4 border-l-2 border-orange-300">
-                                    <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Application Reason</p>
-                                    <p class="text-sm text-gray-700">{{ $application->admin_application_reason }}</p>
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="flex gap-3">
-                                    <form method="POST" action="{{ route('super-admin.approve-admin', $application) }}" style="display: inline;">
-                                        @csrf
-                                        <button type="submit" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-semibold text-sm">
-                                            ✓ Approve
-                                        </button>
-                                    </form>
-                                    <button 
-                                        onclick="openRejectModal({{ $application->id }})" 
-                                        class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-semibold text-sm">
-                                        ✗ Reject
-                                    </button>
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
-                            <p class="text-blue-700 font-semibold">✓ No pending applications</p>
-                        </div>
-                    @endif
                 </div>
 
-                <!-- All Users Section -->
-                <div>
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-2xl font-bold text-gray-800">👥 All Users & Admins</h3>
-                        <p class="text-sm text-gray-600">Total: {{ $allUsers->total() }} users</p>
-                    </div>
-
-                    @if($allUsers->count() > 0)
-                        <div class="bg-white rounded-lg shadow overflow-hidden">
-                            <div class="overflow-x-auto">
-                                <table class="w-full min-w-[980px]">
-                                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-700">
-                                        <tr>
-                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Name</th>
-                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Email</th>
-                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Role</th>
-                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Club</th>
-                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Status</th>
-                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Joined</th>
-                                            <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wide">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($allUsers as $user)
-                                        <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-                                            <td class="px-6 py-4 text-sm font-semibold text-gray-800 whitespace-nowrap">{{ $user->name }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ $user->email }}</td>
-                                            <td class="px-6 py-4 text-sm">
-                                                @if($user->role === 'super_admin')
-                                                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Super Admin</span>
-                                                @elseif($user->role === 'admin')
-                                                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Admin</span>
-                                                @else
-                                                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">Student</span>
-                                                @endif
-                                            </td>
-                                            <td class="px-6 py-4 text-sm text-gray-700">
-                                                @if(optional($user->club)->name)
-                                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">{{ $user->club->name }}</span>
-                                                @else
-                                                    <span class="text-gray-400">-</span>
-                                                @endif
-                                            </td>
-                                            <td class="px-6 py-4 text-sm">
-                                                @if($user->role === 'super_admin')
-                                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Active</span>
-                                                @elseif($user->admin_status === 'pending')
-                                                    <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">⏳ Pending</span>
-                                                @elseif($user->admin_status === 'approved')
-                                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Approved</span>
-                                                @elseif($user->admin_status === 'rejected')
-                                                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">✗ Rejected</span>
-                                                @else
-                                                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Not Applied</span>
-                                                @endif
-                                            </td>
-                                            <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ $user->created_at->format('M d, Y') }}</td>
-                                            <td class="px-6 py-4 text-center">
-                                                <div class="flex justify-center gap-2 flex-wrap">
-                                                    <button
-                                                        type="button"
-                                                        onclick="openUserDetailsModal({{ $user->id }})"
-                                                        class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition">
-                                                        View
-                                                    </button>
-
-                                                    @if($user->role !== 'super_admin')
-                                                        <button 
-                                                            type="button"
-                                                            onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
-                                                            class="px-3 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-700 transition">
-                                                            Edit
-                                                        </button>
-                                                    @endif
-
-                                                    @if($user->role === 'super_admin')
-                                                        <span class="px-3 py-1 bg-gray-300 text-gray-700 rounded text-xs font-medium cursor-not-allowed">
-                                                            Delete
-                                                        </span>
-                                                    @else
-                                                        <form method="POST" action="{{ route('super-admin.delete-user', $user) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition">
-                                                                Delete
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
+                <div class="admin-filters-card">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 class="admin-shell-title">User Filters</h3>
+                            <p class="admin-shell-subtitle">Search users, filter by role, and narrow by account status</p>
                         </div>
 
-                        <!-- Pagination -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full md:max-w-3xl">
+                            <input
+                                type="text"
+                                id="userSearchInput"
+                                placeholder="Search name or email..."
+                                class="admin-input"
+                            >
+
+                            <select id="userRoleFilter" class="admin-select">
+                                <option value="">All Roles</option>
+                                <option value="super_admin">Super Admin</option>
+                                <option value="admin">Admin</option>
+                                <option value="student">Student</option>
+                            </select>
+
+                            <select id="userStatusFilter" class="admin-select">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="not_applied">Not Applied</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                @if($allUsers->count() > 0)
+                    <div class="admin-table-wrap">
+                        <div class="admin-table-header">
+                            <h3 class="admin-table-title">All Users & Admins</h3>
+                            <p class="admin-table-subtitle">Total: {{ $allUsers->total() }} users</p>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="admin-table min-w-[980px]">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Club</th>
+                                        <th>Status</th>
+                                        <th>Joined</th>
+                                        <th class="is-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    @foreach($allUsers as $user)
+                                    <tr
+                                        data-user-name="{{ strtolower($user->name) }}"
+                                        data-user-email="{{ strtolower($user->email) }}"
+                                        data-user-role="{{ strtolower($user->role) }}"
+                                        data-user-status="{{ $user->role === 'super_admin' ? 'active' : strtolower($user->admin_status ?? 'not_applied') }}"
+                                    >
+                                        <td class="font-semibold text-gray-800 whitespace-nowrap">{{ $user->name }}</td>
+                                        <td class="text-gray-600 whitespace-nowrap">{{ $user->email }}</td>
+                                        <td>
+                                            @if($user->role === 'super_admin')
+                                                <span class="admin-badge admin-badge--red">Super Admin</span>
+                                            @elseif($user->role === 'admin')
+                                                <span class="admin-badge admin-badge--blue">Admin</span>
+                                            @else
+                                                <span class="admin-badge admin-badge--gray">Student</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if(optional($user->club)->name)
+                                                <span class="admin-badge admin-badge--purple">{{ $user->club->name }}</span>
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($user->role === 'super_admin')
+                                                <span class="admin-badge admin-badge--green">✓ Active</span>
+                                            @elseif($user->admin_status === 'pending')
+                                                <span class="admin-badge admin-badge--orange">⏳ Pending</span>
+                                            @elseif($user->admin_status === 'approved')
+                                                <span class="admin-badge admin-badge--green">✓ Approved</span>
+                                            @elseif($user->admin_status === 'rejected')
+                                                <span class="admin-badge admin-badge--red">✗ Rejected</span>
+                                            @else
+                                                <span class="admin-badge admin-badge--gray">Not Applied</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-gray-600 whitespace-nowrap">{{ $user->created_at->format('M d, Y') }}</td>
+                                        <td class="is-center">
+                                            <div class="admin-actions">
+                                                <button
+                                                    type="button"
+                                                    onclick="openUserDetailsModal({{ $user->id }})"
+                                                    class="admin-action-btn admin-action-btn--view">
+                                                    View
+                                                </button>
+
+                                                @if($user->role !== 'super_admin')
+                                                    <button
+                                                        type="button"
+                                                        onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
+                                                        class="admin-action-btn admin-action-btn--edit">
+                                                        Edit
+                                                    </button>
+                                                @endif
+
+                                                @if($user->role === 'super_admin')
+                                                    <span class="admin-action-btn" style="background:#9ca3af; cursor:not-allowed;">
+                                                        Delete
+                                                    </span>
+                                                @else
+                                                    <form method="POST" action="{{ route('super-admin.delete-user', $user) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
                         @if($allUsers->hasPages())
-                        <div class="mt-6">
+                        <div class="admin-pagination mt-6">
                             {{ $allUsers->links() }}
                         </div>
                         @endif
-                    @else
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
-                            <p class="text-blue-700 font-semibold text-lg">No users found</p>
-                        </div>
-                    @endif
-                </div>
+                    </div>
+                @else
+                    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-8 text-center">
+                        <p class="text-blue-700 font-semibold text-lg">No users found</p>
+                    </div>
+                @endif
             </div>
         </main>
     </div>
@@ -397,6 +441,40 @@
         </div>
 
     <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const searchInput = document.getElementById('userSearchInput');
+                const roleFilter = document.getElementById('userRoleFilter');
+                const statusFilter = document.getElementById('userStatusFilter');
+                const tableBody = document.getElementById('usersTableBody');
+
+                if (searchInput && roleFilter && statusFilter && tableBody) {
+                    const rows = Array.from(tableBody.querySelectorAll('tr[data-user-name]'));
+
+                    const applyFilters = () => {
+                        const searchTerm = searchInput.value.trim().toLowerCase();
+                        const selectedRole = roleFilter.value;
+                        const selectedStatus = statusFilter.value;
+
+                        rows.forEach((row) => {
+                            const name = row.dataset.userName || '';
+                            const email = row.dataset.userEmail || '';
+                            const role = row.dataset.userRole || '';
+                            const status = row.dataset.userStatus || '';
+
+                            const matchesSearch = !searchTerm || name.includes(searchTerm) || email.includes(searchTerm);
+                            const matchesRole = !selectedRole || role === selectedRole;
+                            const matchesStatus = !selectedStatus || status === selectedStatus;
+
+                            row.style.display = matchesSearch && matchesRole && matchesStatus ? '' : 'none';
+                        });
+                    };
+
+                    searchInput.addEventListener('input', applyFilters);
+                    roleFilter.addEventListener('change', applyFilters);
+                    statusFilter.addEventListener('change', applyFilters);
+                }
+            });
+
         function openRejectModal(userId) {
             document.getElementById('rejectForm').action = `/super-admin/users/${userId}/reject`;
             document.getElementById('rejectModal').classList.remove('hidden');

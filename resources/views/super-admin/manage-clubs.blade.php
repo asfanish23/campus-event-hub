@@ -98,43 +98,73 @@
                 </div>
                 @endif
 
-                <!-- Create Club Button -->
-                <div class="mb-6">
-                    <a href="{{ route('super-admin.clubs.create') }}" class="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-                        ➕ Create New Club
-                    </a>
+                @php
+                    $clubCategories = collect($clubs->items())->pluck('category')->filter()->unique()->sort()->values();
+                @endphp
+
+                <div class="admin-filters-card">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 class="admin-shell-title">Club List</h3>
+                            <p class="admin-shell-subtitle">Manage all registered campus clubs</p>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                            <input
+                                type="text"
+                                id="clubSearchInput"
+                                placeholder="Search clubs..."
+                                class="admin-input sm:w-64"
+                            >
+
+                            <select id="clubCategoryFilter" class="admin-select sm:w-56">
+                                <option value="">All Categories</option>
+                                @foreach($clubCategories as $category)
+                                    <option value="{{ strtolower($category) }}">{{ $category }}</option>
+                                @endforeach
+                            </select>
+
+                            <a href="{{ route('super-admin.clubs.create') }}" class="admin-primary-btn whitespace-nowrap">
+                                + Create Club
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="admin-table-wrap">
+                    <div class="admin-table-header">
+                        <h3 class="admin-table-title">All Clubs</h3>
+                        <p class="admin-table-subtitle">Total: {{ $clubs->total() }} clubs</p>
+                    </div>
+
                     <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 border-b border-gray-200">
+                        <table class="admin-table">
+                            <thead>
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Club Name</th>
-                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
-                                    <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
+                                    <th>Club Name</th>
+                                    <th>Category</th>
+                                    <th class="is-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="clubsTableBody">
                                 @forelse($clubs as $club)
-                                <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="px-6 py-4 text-sm font-semibold text-gray-800">{{ $club->name }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $club->category }}</td>
-                                    <td class="px-6 py-4 text-center">
-                                        <div class="flex justify-center gap-2 flex-wrap">
-                                        <a href="{{ route('super-admin.clubs.show', $club) }}" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition">
-                                            View
-                                        </a>
-                                        <a href="{{ route('super-admin.clubs.edit', $club) }}" class="px-3 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-700 transition">
-                                            Edit
-                                        </a>
-                                        <form method="POST" action="{{ route('super-admin.clubs.delete', $club) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this club? This action cannot be undone.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition">
-                                                Delete
-                                            </button>
-                                        </form>
+                                <tr
+                                    data-club-name="{{ strtolower($club->name) }}"
+                                    data-club-category="{{ strtolower($club->category) }}"
+                                >
+                                    <td class="whitespace-nowrap font-semibold text-gray-800">{{ $club->name }}</td>
+                                    <td class="whitespace-nowrap text-gray-600">{{ $club->category }}</td>
+                                    <td class="is-center">
+                                        <div class="admin-actions">
+                                            <a href="{{ route('super-admin.clubs.show', $club) }}" class="admin-action-btn admin-action-btn--view">View</a>
+                                            <a href="{{ route('super-admin.clubs.edit', $club) }}" class="admin-action-btn admin-action-btn--edit">Edit</a>
+                                            <form method="POST" action="{{ route('super-admin.clubs.delete', $club) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this club? This action cannot be undone.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                    Delete
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -147,12 +177,42 @@
                         </table>
                     </div>
 
-                    <div class="p-6 border-t border-gray-200">
+                    <div class="admin-pagination">
                         {{ $clubs->links() }}
                     </div>
                 </div>
             </div>
         </main>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('clubSearchInput');
+            const categoryFilter = document.getElementById('clubCategoryFilter');
+            const tableBody = document.getElementById('clubsTableBody');
+
+            if (!searchInput || !categoryFilter || !tableBody) {
+                return;
+            }
+
+            const rows = Array.from(tableBody.querySelectorAll('tr[data-club-name]'));
+
+            const applyFilters = () => {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                const categoryTerm = categoryFilter.value;
+
+                rows.forEach((row) => {
+                    const name = row.dataset.clubName || '';
+                    const category = row.dataset.clubCategory || '';
+                    const matchesSearch = !searchTerm || name.includes(searchTerm) || category.includes(searchTerm);
+                    const matchesCategory = !categoryTerm || category === categoryTerm;
+                    row.style.display = matchesSearch && matchesCategory ? '' : 'none';
+                });
+            };
+
+            searchInput.addEventListener('input', applyFilters);
+            categoryFilter.addEventListener('change', applyFilters);
+        });
+    </script>
 </body>
 </html>
