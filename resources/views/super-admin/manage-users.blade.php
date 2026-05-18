@@ -5,6 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Users | Campus Event Hub</title>
     @vite('resources/css/app.css')
+    <style>
+        .admin-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.375rem;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+        }
+
+        .admin-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.10);
+        }
+
+        .admin-action-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px #8b5cf6;
+        }
+
+        .admin-action-btn--view {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .admin-action-btn--edit {
+            background: #fffbeb;
+            color: #b45309;
+            border-color: #fde68a;
+        }
+
+        .admin-action-btn--delete {
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fecaca;
+        }
+
+        .admin-action-btn--view:hover {
+            background: #dbeafe;
+        }
+
+        .admin-action-btn--edit:hover {
+            background: #fef3c7;
+        }
+
+        .admin-action-btn--delete:hover {
+            background: #fee2e2;
+        }
+
+        .admin-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .admin-badge--role-super {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .admin-badge--role-admin {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .admin-badge--role-student {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .admin-badge--club {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .admin-badge--active,
+        .admin-badge--approved {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .admin-badge--pending {
+            background: #ffedd5;
+            color: #c2410c;
+        }
+
+        .admin-badge--rejected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .admin-badge--neutral {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .admin-table-row {
+            transition: background-color 150ms ease, transform 150ms ease;
+        }
+
+        .admin-table-row:hover {
+            background: #f8fafc;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen">
@@ -169,78 +285,85 @@
                     @if($allUsers->count() > 0)
                         <div class="bg-white rounded-lg shadow overflow-hidden">
                             <div class="overflow-x-auto">
-                                <table class="w-full">
-                                    <thead class="bg-gradient-to-r from-gray-800 to-gray-700 text-white">
+                                <table class="w-full min-w-[980px]">
+                                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-700">
                                         <tr>
-                                            <th class="px-6 py-4 text-left text-sm font-semibold">Name</th>
-                                            <th class="px-6 py-4 text-left text-sm font-semibold">Email</th>
-                                            <th class="px-6 py-4 text-left text-sm font-semibold">Role</th>
-                                            <th class="px-6 py-4 text-left text-sm font-semibold">Club</th>
-                                            <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                                            <th class="px-6 py-4 text-left text-sm font-semibold">Joined</th>
-                                            <th class="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Name</th>
+                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Email</th>
+                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Role</th>
+                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Club</th>
+                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Status</th>
+                                            <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wide">Joined</th>
+                                            <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wide">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-gray-200">
+                                    <tbody class="divide-y divide-slate-200 bg-white">
                                         @foreach($allUsers as $user)
-                                        <tr class="hover:bg-gray-50 transition">
-                                            <td class="px-6 py-4 text-sm font-semibold text-gray-900">{{ $user->name }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-600">{{ $user->email }}</td>
+                                        <tr class="admin-table-row">
+                                            <td class="px-6 py-4 text-sm font-semibold text-slate-900 whitespace-nowrap">{{ $user->name }}</td>
+                                            <td class="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{{ $user->email }}</td>
                                             <td class="px-6 py-4 text-sm">
                                                 @if($user->role === 'super_admin')
-                                                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Super Admin</span>
+                                                    <span class="admin-badge admin-badge--role-super">Super Admin</span>
                                                 @elseif($user->role === 'admin')
-                                                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Admin</span>
+                                                    <span class="admin-badge admin-badge--role-admin">Admin</span>
                                                 @else
-                                                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">Student</span>
+                                                    <span class="admin-badge admin-badge--role-student">Student</span>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-700">
                                                 @if(optional($user->club)->name)
-                                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">{{ $user->club->name }}</span>
+                                                    <span class="admin-badge admin-badge--club">{{ $user->club->name }}</span>
                                                 @else
-                                                    <span class="text-gray-400">-</span>
+                                                    <span class="text-slate-400">-</span>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 text-sm">
                                                 @if($user->role === 'super_admin')
-                                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Active</span>
+                                                    <span class="admin-badge admin-badge--active">✓ Active</span>
                                                 @elseif($user->admin_status === 'pending')
-                                                    <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">⏳ Pending</span>
+                                                    <span class="admin-badge admin-badge--pending">⏳ Pending</span>
                                                 @elseif($user->admin_status === 'approved')
-                                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Approved</span>
+                                                    <span class="admin-badge admin-badge--approved">✓ Approved</span>
                                                 @elseif($user->admin_status === 'rejected')
-                                                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">✗ Rejected</span>
+                                                    <span class="admin-badge admin-badge--rejected">✗ Rejected</span>
                                                 @else
-                                                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Not Applied</span>
+                                                    <span class="admin-badge admin-badge--neutral">Not Applied</span>
                                                 @endif
                                             </td>
-                                            <td class="px-6 py-4 text-sm text-gray-600">{{ $user->created_at->format('M d, Y') }}</td>
-                                            <td class="px-6 py-4 text-center space-x-2">
-                                                <button
-                                                    onclick="openUserDetailsModal({{ $user->id }})"
-                                                    class="text-gray-700 hover:text-gray-900 font-semibold text-sm hover:underline">
-                                                    View Details
-                                                </button>
-
-                                                @if($user->role !== 'super_admin')
-                                                    <button 
-                                                        onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
-                                                        class="text-blue-600 hover:text-blue-800 font-semibold text-sm hover:underline">
-                                                        Edit Role
+                                            <td class="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{{ $user->created_at->format('M d, Y') }}</td>
+                                            <td class="px-6 py-4 text-center">
+                                                <div class="flex items-center justify-center gap-2 flex-wrap">
+                                                    <button
+                                                        type="button"
+                                                        onclick="openUserDetailsModal({{ $user->id }})"
+                                                        class="admin-action-btn admin-action-btn--view">
+                                                        View
                                                     </button>
-                                                @endif
-                                                @if($user->role === 'super_admin')
-                                                    <span class="text-gray-400 text-sm font-semibold cursor-not-allowed">Delete</span>
-                                                @else
-                                                    <form method="POST" action="{{ route('super-admin.delete-user', $user) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm hover:underline">
-                                                            Delete
+
+                                                    @if($user->role !== 'super_admin')
+                                                        <button 
+                                                            type="button"
+                                                            onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
+                                                            class="admin-action-btn admin-action-btn--edit">
+                                                            Edit
                                                         </button>
-                                                    </form>
-                                                @endif
+                                                    @endif
+
+                                                    @if($user->role === 'super_admin')
+                                                        <span class="admin-action-btn bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed">
+                                                            Delete
+                                                        </span>
+                                                    @else
+                                                        <form method="POST" action="{{ route('super-admin.delete-user', $user) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                                Delete
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                </div>
                                             </td>
                                         </tr>
                                         @endforeach
