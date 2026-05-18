@@ -108,32 +108,34 @@
                 <div class="bg-white rounded-lg shadow overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead class="bg-gradient-to-r from-gray-800 to-gray-700 text-white">
+                            <thead class="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-6 py-4 text-left text-sm font-semibold">Club Name</th>
-                                    <th class="px-6 py-4 text-left text-sm font-semibold">Category</th>
-                                    <th class="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Club Name</th>
+                                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
+                                    <th class="px-6 py-3 text-center text-sm font-semibold text-gray-700">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-200">
+                            <tbody>
                                 @forelse($clubs as $club)
-                                <tr class="hover:bg-gray-50 transition">
+                                <tr class="border-b border-gray-200 hover:bg-gray-50">
                                     <td class="px-6 py-4 text-sm font-semibold text-gray-800">{{ $club->name }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $club->category }}</td>
-                                    <td class="px-6 py-4 text-center space-x-2">
-                                        <a href="{{ route('super-admin.clubs.show', $club) }}" class="text-green-600 hover:text-green-800 font-semibold text-sm hover:underline">
+                                    <td class="px-6 py-4 text-center">
+                                        <div class="flex justify-center gap-2 flex-wrap">
+                                        <a href="{{ route('super-admin.clubs.show', $club) }}" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition">
                                             View
                                         </a>
-                                        <a href="{{ route('super-admin.clubs.edit', $club) }}" class="text-blue-600 hover:text-blue-800 font-semibold text-sm hover:underline">
+                                        <a href="{{ route('super-admin.clubs.edit', $club) }}" class="px-3 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-700 transition">
                                             Edit
                                         </a>
                                         <form method="POST" action="{{ route('super-admin.clubs.delete', $club) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this club? This action cannot be undone.');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm hover:underline">
+                                            <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition">
                                                 Delete
                                             </button>
                                         </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 @empty

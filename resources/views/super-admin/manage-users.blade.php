@@ -181,41 +181,41 @@
                                             <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wide">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-200 bg-white">
+                                    <tbody>
                                         @foreach($allUsers as $user)
-                                        <tr class="admin-table-row">
-                                            <td class="px-6 py-4 text-sm font-semibold text-slate-900 whitespace-nowrap">{{ $user->name }}</td>
-                                            <td class="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{{ $user->email }}</td>
+                                        <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+                                            <td class="px-6 py-4 text-sm font-semibold text-gray-800 whitespace-nowrap">{{ $user->name }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ $user->email }}</td>
                                             <td class="px-6 py-4 text-sm">
                                                 @if($user->role === 'super_admin')
-                                                    <span class="admin-badge admin-badge--role-super">Super Admin</span>
+                                                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Super Admin</span>
                                                 @elseif($user->role === 'admin')
-                                                    <span class="admin-badge admin-badge--role-admin">Admin</span>
+                                                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Admin</span>
                                                 @else
-                                                    <span class="admin-badge admin-badge--role-student">Student</span>
+                                                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">Student</span>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-700">
                                                 @if(optional($user->club)->name)
-                                                    <span class="admin-badge admin-badge--club">{{ $user->club->name }}</span>
+                                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">{{ $user->club->name }}</span>
                                                 @else
-                                                    <span class="text-slate-400">-</span>
+                                                    <span class="text-gray-400">-</span>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 text-sm">
                                                 @if($user->role === 'super_admin')
-                                                    <span class="admin-badge admin-badge--active">✓ Active</span>
+                                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Active</span>
                                                 @elseif($user->admin_status === 'pending')
-                                                    <span class="admin-badge admin-badge--pending">⏳ Pending</span>
+                                                    <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">⏳ Pending</span>
                                                 @elseif($user->admin_status === 'approved')
-                                                    <span class="admin-badge admin-badge--approved">✓ Approved</span>
+                                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Approved</span>
                                                 @elseif($user->admin_status === 'rejected')
-                                                    <span class="admin-badge admin-badge--rejected">✗ Rejected</span>
+                                                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">✗ Rejected</span>
                                                 @else
-                                                    <span class="admin-badge admin-badge--neutral">Not Applied</span>
+                                                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">Not Applied</span>
                                                 @endif
                                             </td>
-                                            <td class="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{{ $user->created_at->format('M d, Y') }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ $user->created_at->format('M d, Y') }}</td>
                                             <td class="px-6 py-4 text-center">
                                                 <div class="flex justify-center gap-2 flex-wrap">
                                                     <button

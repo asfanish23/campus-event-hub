@@ -115,7 +115,7 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ Str::limit($review->comment, 50) }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $review->created_at->format('M d, Y') }}</td>
                                     <td class="px-6 py-4 text-center">
-                                        <button class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                                        <button class="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition">Delete</button>
                                     </td>
                                 </tr>
                                 @empty
