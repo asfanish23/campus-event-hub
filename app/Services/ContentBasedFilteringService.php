@@ -145,6 +145,9 @@ class ContentBasedFilteringService
         $availableEvents = Event::whereNotIn('id', array_merge($likedEventIds, $attendedEventIds))
             ->whereRaw("LOWER(status) != ?", ['completed'])
             ->whereDate('date', '>=', now())
+            ->whereHas('club', function ($query) {
+                $query->where('status', 'active');
+            })
             ->get();
 
         // Build user profile from likes
@@ -205,6 +208,9 @@ class ContentBasedFilteringService
         $allEvents = Event::where('id', '!=', $event->id)
             ->whereRaw("LOWER(status) != ?", ['completed'])
             ->whereDate('date', '>=', now())
+            ->whereHas('club', function ($query) {
+                $query->where('status', 'active');
+            })
             ->get();
 
         $scoredEvents = [];

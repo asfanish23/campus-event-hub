@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/clubs/{id}/edit', [SuperAdminController::class, 'editClub'])->name('clubs.edit');
         Route::get('/clubs/{id}', [SuperAdminController::class, 'showClub'])->name('clubs.show');
         Route::put('/clubs/{id}', [SuperAdminController::class, 'updateClub'])->name('clubs.update');
+        Route::put('/clubs/{id}/status', [SuperAdminController::class, 'updateClubStatus'])->name('clubs.status');
         Route::delete('/clubs/{id}', [SuperAdminController::class, 'deleteClub'])->name('clubs.delete');
         Route::get('/manage-users', [SuperAdminController::class, 'manageUsers'])->name('manage-users');
         Route::post('/users/{user}/approve', [SuperAdminController::class, 'approveAdmin'])->name('approve-admin');

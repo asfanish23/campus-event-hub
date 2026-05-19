@@ -143,6 +143,7 @@
                                 <tr>
                                     <th>Club Name</th>
                                     <th>Category</th>
+                                    <th>Status</th>
                                     <th class="is-center">Actions</th>
                                 </tr>
                             </thead>
@@ -154,10 +155,36 @@
                                 >
                                     <td class="whitespace-nowrap font-semibold text-gray-800">{{ $club->name }}</td>
                                     <td class="whitespace-nowrap text-gray-600">{{ $club->category }}</td>
+                                    <td class="whitespace-nowrap">
+                                        @if($club->status === 'active')
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Active</span>
+                                        @else
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">Inactive</span>
+                                        @endif
+                                    </td>
                                     <td class="is-center">
                                         <div class="admin-actions">
                                             <a href="{{ route('super-admin.clubs.show', $club) }}" class="admin-action-btn admin-action-btn--view">View</a>
                                             <a href="{{ route('super-admin.clubs.edit', $club) }}" class="admin-action-btn admin-action-btn--edit">Edit</a>
+                                            @if($club->status === 'active')
+                                                <form method="POST" action="{{ route('super-admin.clubs.status', $club) }}" class="inline">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="status" value="inactive">
+                                                    <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                        Deactivate
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('super-admin.clubs.status', $club) }}" class="inline">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="status" value="active">
+                                                    <button type="submit" class="admin-action-btn admin-action-btn--edit">
+                                                        Activate
+                                                    </button>
+                                                </form>
+                                            @endif
                                             <form method="POST" action="{{ route('super-admin.clubs.delete', $club) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this club? This action cannot be undone.');">
                                                 @csrf
                                                 @method('DELETE')
@@ -170,7 +197,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="3" class="px-6 py-4 text-center text-gray-500">No clubs found</td>
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">No clubs found</td>
                                 </tr>
                                 @endforelse
                             </tbody>

@@ -4,10 +4,16 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Event;
+use App\Services\ClubActivityService;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
+    public function __construct(private ClubActivityService $clubActivityService)
+    {
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -32,6 +38,8 @@ class AttendanceController extends Controller
                     : null,
             ]);
 
+            $this->clubActivityService->recordClubActivity($existing->event->club);
+
             return redirect()->back()->with('success', 'Attendance updated successfully!');
         }
 
@@ -46,6 +54,8 @@ class AttendanceController extends Controller
                 : null,
         ]);
 
+        $this->clubActivityService->recordClubActivity(Event::find($validated['event_id'])?->club);
+
         return redirect()->back()->with('success', 'Attendance marked successfully!');
     }
 
@@ -56,6 +66,8 @@ class AttendanceController extends Controller
         ]);
 
         $attendance->update($validated);
+
+        $this->clubActivityService->recordClubActivity($attendance->event->club);
 
         return redirect()->back()->with('success', 'Attendance status updated successfully!');
     }

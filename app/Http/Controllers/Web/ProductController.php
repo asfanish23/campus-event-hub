@@ -6,13 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductMedia;
 use App\Models\Order;
+use App\Services\ClubActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
-    public function __construct()
+    private ClubActivityService $clubActivityService;
+
+    public function __construct(ClubActivityService $clubActivityService)
     {
+        $this->clubActivityService = $clubActivityService;
+
         // Only club admins can access merchandise management
         $this->middleware('auth');
         $this->middleware(function ($request, $next) {

@@ -272,9 +272,9 @@
                                                 </button>
 
                                                 @if($user->role !== 'super_admin')
-                                                    <button
+                                                    <button 
                                                         type="button"
-                                                        onclick="openEditRoleModal({{ $user->id }}, '{{ $user->name }}', '{{ $user->role }}')"
+                                                        onclick="openEditRoleModal({{ $user->id }}, {!! json_encode($user->name) !!}, {!! json_encode($user->role) !!})"
                                                         class="admin-action-btn admin-action-btn--edit">
                                                         Edit
                                                     </button>

@@ -11,6 +11,9 @@ class Club extends Model
 {
     use HasFactory;
 
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_INACTIVE = 'inactive';
+
     protected $fillable = [
         'name',
         'email',
@@ -29,10 +32,17 @@ class Club extends Model
         'profile_photo',
         'background_photo',
         'background_position_v',
+        'status',
+        'last_activity_at',
     ];
 
     protected $casts = [
         'founded_date' => 'date',
+        'last_activity_at' => 'datetime',
+    ];
+
+    protected $attributes = [
+        'status' => self::STATUS_ACTIVE,
     ];
 
     /**
@@ -74,6 +84,16 @@ class Club extends Model
     public function notifications()
     {
         return $this->hasMany(ClubNotification::class);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function scopeInactive($query)
+    {
+        return $query->where('status', self::STATUS_INACTIVE);
     }
 }
 

@@ -5,12 +5,20 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\InstagramAccount;
+use App\Services\ClubActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ClubInstagramController extends Controller
 {
+    private ClubActivityService $clubActivityService;
+
+    public function __construct(ClubActivityService $clubActivityService)
+    {
+        $this->clubActivityService = $clubActivityService;
+    }
+
     /**
      * Store Instagram credentials for a club
      */
@@ -22,6 +30,8 @@ class ClubInstagramController extends Controller
         if (!$club) {
             return back()->with('error', 'You do not have a club to manage.');
         }
+
+        $this->clubActivityService->ensureClubIsActive($club);
 
         $validated = $request->validate([
             'instagram_username' => 'required|string|max:255',
@@ -47,6 +57,8 @@ class ClubInstagramController extends Controller
                 'username' => $validated['instagram_username'],
             ]);
 
+            $this->clubActivityService->recordClubActivity($club);
+
             return back()->with('success', 'Instagram account connected successfully!');
         } catch (\Exception $e) {
             Log::error('Error saving Instagram credentials', [
@@ -70,6 +82,8 @@ class ClubInstagramController extends Controller
             return back()->with('error', 'You do not have a club to manage.');
         }
 
+        $this->clubActivityService->ensureClubIsActive($club);
+
         try {
             $instagramAccount = InstagramAccount::where('club_id', $club->id)->first();
             
@@ -77,6 +91,8 @@ class ClubInstagramController extends Controller
                 $instagramAccount->update(['is_active' => false]);
 
                 Log::info('Instagram account disconnected for club', ['club_id' => $club->id]);
+
+                $this->clubActivityService->recordClubActivity($club);
 
                 return back()->with('success', 'Instagram account disconnected.');
             }

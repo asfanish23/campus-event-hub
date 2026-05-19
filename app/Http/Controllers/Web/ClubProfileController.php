@@ -11,6 +11,8 @@ class ClubProfileController extends Controller
 {
     public function show(Request $request)
     {
+
+        $this->clubActivityService->recordClubActivity($club);
         $user = Auth::user();
         $club = Club::find($user->club_id) ?? new Club();
         

@@ -97,8 +97,18 @@
                                 @endif
                             </div>
                             <div class="flex-1 pb-2">
-                                <h1 class="text-4xl font-bold text-gray-800">{{ $club->name }}</h1>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <h1 class="text-4xl font-bold text-gray-800">{{ $club->name }}</h1>
+                                    @if(($club->status ?? 'active') === 'active')
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Active</span>
+                                    @else
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">Inactive</span>
+                                    @endif
+                                </div>
                                 <p class="text-gray-600 text-lg mt-2">{{ $club->category ?? 'General Club' }}</p>
+                                @if(($club->status ?? 'active') !== 'active')
+                                    <p class="mt-3 text-sm font-medium text-gray-500">This club is currently inactive.</p>
+                                @endif
                             </div>
                         </div>
 

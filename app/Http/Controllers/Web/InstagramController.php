@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Services\ClubActivityService;
 use App\Services\InstagramService;
 use App\Services\ImgBBService;
 use Illuminate\Http\Request;
@@ -15,11 +16,13 @@ class InstagramController extends Controller
 {
     private InstagramService $instagramService;
     private ImgBBService $imgbbService;
+    private ClubActivityService $clubActivityService;
 
-    public function __construct(InstagramService $instagramService, ImgBBService $imgbbService)
+    public function __construct(InstagramService $instagramService, ImgBBService $imgbbService, ClubActivityService $clubActivityService)
     {
         $this->instagramService = $instagramService;
         $this->imgbbService = $imgbbService;
+        $this->clubActivityService = $clubActivityService;
     }
 
     /**

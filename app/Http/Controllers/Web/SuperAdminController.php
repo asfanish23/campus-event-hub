@@ -159,6 +159,22 @@ class SuperAdminController extends Controller
         return view('super-admin.manage-clubs', ['clubs' => $clubs]);
     }
 
+    public function updateClubStatus(Request $request, $id)
+    {
+        $club = Club::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'required|in:active,inactive',
+        ]);
+
+        $club->update([
+            'status' => $validated['status'],
+            'last_activity_at' => $validated['status'] === 'active' ? now() : $club->last_activity_at,
+        ]);
+
+        return redirect()->route('super-admin.manage-clubs')->with('success', 'Club status updated successfully!');
+    }
+
     public function createClub()
     {
         return view('super-admin.club-create');
@@ -185,6 +201,8 @@ class SuperAdminController extends Controller
         if ($request->hasFile('background_photo')) {
             $validated['background_photo'] = $request->file('background_photo')->store('clubs', 'public');
         }
+
+        $validated['last_activity_at'] = now();
 
         Club::create($validated);
         return redirect()->route('super-admin.manage-clubs')->with('success', 'Club created successfully!');

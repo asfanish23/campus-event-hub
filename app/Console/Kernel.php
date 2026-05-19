@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Console\Commands\UpdateInactiveClubs;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -17,6 +18,11 @@ class Kernel extends ConsoleKernel
                  ->everyFiveMinutes()
                  ->withoutOverlapping()
                  ->onOneServer();
+
+        $schedule->command(UpdateInactiveClubs::class)
+             ->dailyAt('01:00')
+             ->withoutOverlapping()
+             ->onOneServer();
     }
 
     /**

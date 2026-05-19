@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventMedia;
 use App\Models\Club;
 use App\Services\ClubInstagramService;
+use App\Services\ClubActivityService;
 use App\Services\InstagramNotificationService;
 use App\Services\InstagramService;
 use App\Services\ImgBBService;
@@ -21,17 +22,20 @@ class EventController extends Controller
     private InstagramNotificationService $notificationService;
     private InstagramService $instagramService;
     private ImgBBService $imgbbService;
+    private ClubActivityService $clubActivityService;
 
     public function __construct(
         ClubInstagramService $clubInstagramService,
         InstagramNotificationService $notificationService,
         InstagramService $instagramService,
-        ImgBBService $imgbbService
+        ImgBBService $imgbbService,
+        ClubActivityService $clubActivityService
     ) {
         $this->clubInstagramService = $clubInstagramService;
         $this->notificationService = $notificationService;
         $this->instagramService = $instagramService;
         $this->imgbbService = $imgbbService;
+        $this->clubActivityService = $clubActivityService;
     }
 
     /**
@@ -323,6 +327,7 @@ class EventController extends Controller
         }
 
         $event->delete();
+        $this->clubActivityService->recordUserActivity(Auth::user());
 
         return redirect()->route('event.index')->with('success', 'Event deleted successfully!');
     }
@@ -380,5 +385,6 @@ class EventController extends Controller
         }
 
         $eventMedia->delete();
+        $this->clubActivityService->recordUserActivity(Auth::user());
         return response()->json(['success' => true]);
     }}
