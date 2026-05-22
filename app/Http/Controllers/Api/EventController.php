@@ -65,7 +65,9 @@ class EventController extends Controller
         // Use computed status instead of database status for accurate filtering
         $eventData['status'] = $event->getComputedStatus();
         $eventData['is_liked'] = $this->safeIsLiked($event, $user);
+        $eventData['is_joined'] = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
         $eventData['likes'] = $this->safeLikesCount($event);
+        $eventData['joined_count'] = $event->registrations()->count();
 
         return $eventData;
     }
