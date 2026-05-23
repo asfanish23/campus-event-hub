@@ -12,10 +12,13 @@
     {{-- LEFT --}}
     <div class="hidden lg:flex flex-col justify-center space-y-8">
         <div class="flex flex-col items-center text-center space-y-3">
-            <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 md:h-12 object-contain" />
+            <div class="flex items-center justify-center gap-4 mb-4">
+                <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 object-contain" />
+                <img src="{{ asset('images/campus_event_hub_logo.svg') }}" alt="Campus Event Hub" class="h-12 object-contain" />
+            </div>
             <div>
-                <h1 class="text-5xl font-bold">Campus Event Hub</h1>
-                <p class="text-xl text-gray-600">UiTM Event Management System</p>
+                <h1 class="text-4xl md:text-5xl font-bold">Campus Event Hub</h1>
+                <p class="text-lg md:text-xl text-gray-600">UiTM Event Management System</p>
             </div>
         </div>
 
