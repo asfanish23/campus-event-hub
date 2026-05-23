@@ -11,14 +11,22 @@
 
     {{-- LEFT --}}
     <div class="hidden lg:flex flex-col justify-center space-y-8">
-        <div class="flex flex-col items-center text-center space-y-3">
-            <div class="flex items-center justify-center gap-4 mb-4">
-                <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 object-contain" />
-                <img src="{{ asset('images/campus_event_hub_logo.svg') }}" alt="Campus Event Hub" class="h-12 object-contain" />
+        <div class="max-w-md mx-auto w-full flex flex-col items-center text-center">
+            <div class="flex items-center justify-center gap-5 mb-5">
+                <div class="rounded-2xl bg-white/80 border border-purple-100 shadow-sm px-4 py-3 backdrop-blur-sm">
+                    <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 w-auto object-contain" />
+                </div>
+
+                <div class="h-12 w-px bg-purple-200/80"></div>
+
+                <div class="rounded-2xl bg-white shadow-md ring-1 ring-purple-100 px-5 py-3">
+                    <img src="{{ asset('images/ceh_logo.png') }}" alt="Campus Event Hub" class="h-12 md:h-14 w-auto object-contain" />
+                </div>
             </div>
+
             <div>
-                <h1 class="text-4xl md:text-5xl font-bold">Campus Event Hub</h1>
-                <p class="text-lg md:text-xl text-gray-600">UiTM Event Management System</p>
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">Campus Event Hub</h1>
+                <p class="text-lg md:text-xl text-gray-600 mt-1">UiTM Event Management System</p>
             </div>
         </div>
 
