@@ -68,6 +68,11 @@
                     🚪 Logout
                 </button>
             </form>
+            <!-- UiTM institutional branding (subtle) -->
+            <div class="p-3 border-t border-purple-500 text-center">
+                <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="mx-auto h-10 object-contain" />
+                <p class="text-xs text-purple-200 mt-1">Powered by UiTM Jasin</p>
+            </div>
         </aside>
 
         <!-- Main Content -->
