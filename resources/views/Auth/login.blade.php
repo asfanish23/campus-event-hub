@@ -12,10 +12,15 @@
     {{-- LEFT --}}
     <div class="hidden lg:flex flex-col justify-center space-y-8">
         <div class="max-w-md mx-auto w-full flex flex-col items-center text-center">
-            <div class="inline-flex items-center justify-center gap-4 mb-5 rounded-full bg-white/70 border border-purple-100 px-6 py-3 shadow-sm backdrop-blur-sm">
-                <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 w-auto shrink-0 object-contain" />
-                <span class="h-10 w-px bg-purple-200"></span>
-                <img src="{{ asset('images/ceh_logo.png') }}" alt="Campus Event Hub" class="h-12 md:h-14 w-auto shrink-0 object-contain" />
+            <div class="flex items-center justify-center gap-4 mb-5">
+                <div class="flex items-center justify-center rounded-2xl bg-white/80 border border-purple-100 shadow-sm px-4 py-3">
+                    <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 w-auto shrink-0 object-contain" />
+                </div>
+
+                <div class="flex items-center justify-center rounded-2xl bg-white shadow-sm border border-gray-200 px-4 py-3 min-w-[160px]">
+                    <img src="{{ asset('images/ceh_logo.png') }}" alt="Campus Event Hub" class="h-12 w-auto shrink-0 object-contain" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');" />
+                    <span class="hidden text-sm font-semibold text-gray-800 tracking-wide whitespace-nowrap">Campus Event Hub</span>
+                </div>
             </div>
 
             <div>
