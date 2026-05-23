@@ -12,9 +12,9 @@
     {{-- LEFT --}}
     <div class="hidden lg:flex flex-col justify-center space-y-8">
         <div class="max-w-md mx-auto w-full flex flex-col items-center text-center">
-            <div class="flex items-center justify-center gap-5 mb-6">
-                <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-12 md:h-14 w-auto shrink-0 object-contain" />
-                <img src="{{ asset('images/ceh_logo.png') }}" alt="Campus Event Hub" class="h-14 md:h-16 w-auto shrink-0 object-contain" />
+            <div class="flex items-center justify-center gap-4 mb-5">
+                <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Jasin" class="h-10 md:h-11 w-auto shrink-0 object-contain" />
+                <img src="{{ asset('images/ceh_logo.png') }}" alt="Campus Event Hub" class="h-11 md:h-12 w-auto shrink-0 object-contain" />
             </div>
 
             <div>
