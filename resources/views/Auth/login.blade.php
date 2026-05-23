@@ -8,161 +8,76 @@
     @vite('resources/css/app.css')
 </head>
 
-<body class="min-h-screen overflow-hidden bg-[#f7f7fb]">
+<body class="min-h-screen bg-slate-100">
 
 <div class="relative min-h-screen overflow-hidden">
-
-    <!-- Background Glow -->
-    <div class="absolute inset-0">
-        <div class="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-purple-300/20 blur-3xl"></div>
-        <div class="absolute bottom-0 right-0 h-[500px] w-[500px] rounded-full bg-fuchsia-300/20 blur-3xl"></div>
+    <div class="pointer-events-none absolute inset-0">
+        <div class="absolute -top-28 -left-24 h-80 w-80 rounded-full bg-purple-200/50 blur-3xl"></div>
+        <div class="absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-indigo-200/40 blur-3xl"></div>
     </div>
 
-    <!-- Main Wrapper -->
-    <main class="relative z-10 flex min-h-screen items-center justify-center px-4 py-6 lg:px-10">
+    <main class="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
+        <div class="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
 
-        <div class="grid w-full max-w-7xl overflow-hidden rounded-[36px] bg-white shadow-[0_30px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[45%_55%]">
-
-            <!-- LEFT SIDE -->
-            <section class="relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#4c1d95] via-[#6d28d9] to-[#7c3aed] px-8 py-16 text-white lg:px-16">
-
-                <!-- Glow -->
-                <div class="absolute top-0 left-0 h-72 w-72 rounded-full bg-white/10 blur-3xl"></div>
-                <div class="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-fuchsia-300/10 blur-3xl"></div>
-
-                <div class="relative z-10 max-w-lg">
-
-                    <!-- Logos -->
-                    <div class="mb-10 flex items-center gap-5">
-
-                        <div class="flex items-center justify-center rounded-3xl bg-white/10 p-5 backdrop-blur-md ring-1 ring-white/10">
-                            <img
-                                src="{{ asset('images/uitm_logo.png') }}"
-                                alt="UiTM Logo"
-                                class="h-20 w-auto object-contain"
-                            >
-                        </div>
-
-                        <div class="h-14 w-px bg-white/20"></div>
-
-                        <div class="flex items-center justify-center rounded-3xl bg-white/10 p-5 backdrop-blur-md ring-1 ring-white/10">
-                            <img
-                                src="{{ asset('images/ceh_logo.png') }}"
-                                alt="Campus Event Hub"
-                                class="h-20 w-auto object-contain"
-                            >
-                        </div>
-
+            <section class="relative bg-gradient-to-br from-purple-900 via-purple-700 to-violet-600 px-8 py-12 text-white sm:px-10 lg:px-12">
+                <div class="space-y-8">
+                    <div class="flex items-center justify-center gap-5 rounded-2xl bg-white/10 px-4 py-4 ring-1 ring-white/20 sm:justify-start">
+                        <img src="{{ asset('images/uitm_logo.png') }}" alt="UiTM Logo" class="h-14 w-auto object-contain" />
+                        <span class="h-10 w-px bg-white/30"></span>
+                        <img src="{{ asset('images/ceh_logo.png') }}" alt="Campus Event Hub" class="h-14 w-auto object-contain" />
                     </div>
 
-                    <!-- Title -->
-                    <div class="space-y-5">
-
-                        <h1 class="text-5xl font-bold leading-tight tracking-tight">
-                            Campus Event Hub
-                        </h1>
-
-                        <p class="max-w-md text-lg leading-8 text-white/75">
-                            Modern campus event management for clubs, students, and university administration.
+                    <div class="space-y-3">
+                        <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Campus Event Hub</h1>
+                        <p class="max-w-md text-sm leading-7 text-purple-100 sm:text-base">
+                            One platform for UiTM clubs, HEP officers, and students to manage and join campus events.
                         </p>
-
                     </div>
 
-                    <!-- Features -->
-                    <div class="mt-14 space-y-7">
-
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-lg backdrop-blur-sm">
-                                👥
-                            </div>
-
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <span class="mt-1 h-2.5 w-2.5 rounded-full bg-white"></span>
                             <div>
-                                <h3 class="text-base font-semibold">
-                                    Club Management
-                                </h3>
-
-                                <p class="mt-1 text-sm leading-6 text-white/70">
-                                    Organize events, attendance, and club activities efficiently.
-                                </p>
+                                <p class="font-semibold">Club Management</p>
+                                <p class="text-sm text-purple-100/80">Create events, track attendance, and manage activities.</p>
                             </div>
-                        </div>
-
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-lg backdrop-blur-sm">
-                                🛡️
-                            </div>
-
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="mt-1 h-2.5 w-2.5 rounded-full bg-white"></span>
                             <div>
-                                <h3 class="text-base font-semibold">
-                                    HEP Administration
-                                </h3>
-
-                                <p class="mt-1 text-sm leading-6 text-white/70">
-                                    Approve and oversee student organizations with streamlined workflows.
-                                </p>
+                                <p class="font-semibold">HEP Oversight</p>
+                                <p class="text-sm text-purple-100/80">Review submissions and monitor organization performance.</p>
                             </div>
-                        </div>
-
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-lg backdrop-blur-sm">
-                                📅
-                            </div>
-
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="mt-1 h-2.5 w-2.5 rounded-full bg-white"></span>
                             <div>
-                                <h3 class="text-base font-semibold">
-                                    Student Portal
-                                </h3>
-
-                                <p class="mt-1 text-sm leading-6 text-white/70">
-                                    Discover events and participate through one connected platform.
-                                </p>
+                                <p class="font-semibold">Student Portal</p>
+                                <p class="text-sm text-purple-100/80">Discover and register for events in one place.</p>
                             </div>
-                        </div>
-
-                    </div>
-
+                        </li>
+                    </ul>
                 </div>
-
             </section>
 
-            <!-- RIGHT SIDE -->
-            <section class="flex items-center justify-center bg-[#fcfcff] px-5 py-10 sm:px-8 lg:px-14">
+            <section class="flex items-center justify-center bg-white px-6 py-10 sm:px-8 lg:px-10">
+                <div class="w-full max-w-md space-y-6">
+                    <div class="space-y-2">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-purple-500">Welcome Back</p>
+                        <h2 class="text-3xl font-bold tracking-tight text-slate-900">Sign in to continue</h2>
+                        <p class="text-sm leading-6 text-slate-500">Access your dashboard and manage campus events seamlessly.</p>
+                    </div>
 
-                <div class="w-full max-w-md">
-
-                    <!-- Card -->
-                    <div class="overflow-hidden rounded-[32px] border border-slate-200/60 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-
-                        <!-- Header -->
-                        <div class="bg-gradient-to-r from-purple-700 to-purple-600 px-8 py-8 text-white">
-
-                            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-purple-100/80">
-                                Welcome Back
-                            </p>
-
-                            <h2 class="mt-3 text-3xl font-bold tracking-tight">
-                                Sign in to continue
-                            </h2>
-
-                            <p class="mt-3 text-sm leading-7 text-purple-100/85">
-                                Access your dashboard and manage campus events seamlessly.
-                            </p>
-
-                        </div>
-
-                        <!-- Form -->
-                        <form method="POST" action="{{ route('login.submit') }}" class="space-y-7 px-8 py-8">
+                    <form method="POST" action="{{ route('login.submit') }}" class="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
 
                             @csrf
 
-                            <!-- Roles -->
                             <div class="space-y-3">
-
                                 <label class="text-sm font-semibold text-slate-700">
                                     Select Your Role
                                 </label>
 
-                                <div class="grid grid-cols-3 rounded-2xl bg-slate-100 p-1.5">
+                                <div class="grid grid-cols-3 rounded-2xl bg-white p-1.5 shadow-sm">
 
                                     <label class="role-button flex cursor-pointer items-center justify-center rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition-all duration-300"
                                         data-role="admin">
@@ -186,7 +101,6 @@
 
                             </div>
 
-                            <!-- Email -->
                             <div class="space-y-2">
 
                                 <label class="text-sm font-semibold text-slate-700">
@@ -207,7 +121,6 @@
 
                             </div>
 
-                            <!-- Password -->
                             <div class="space-y-2">
 
                                 <div class="flex items-center justify-between">
@@ -235,18 +148,16 @@
 
                             </div>
 
-                            <!-- Button -->
                             <button
                                 id="signin-btn"
-                                class="h-14 w-full rounded-2xl bg-gradient-to-r from-purple-700 to-purple-600 font-semibold text-white shadow-[0_12px_30px_rgba(126,34,206,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(126,34,206,0.35)]"
+                                class="h-14 w-full rounded-2xl bg-gradient-to-r from-purple-700 to-purple-600 font-semibold text-white shadow-lg transition-all duration-300 hover:brightness-110"
                             >
                                 Sign In
                             </button>
 
                         </form>
 
-                        <!-- Footer -->
-                        <div class="border-t border-slate-100 bg-slate-50 px-8 py-5 text-sm text-slate-600">
+                        <div class="text-sm text-slate-600">
 
                             <div id="apply-section">
                                 Don't have an account?
@@ -268,18 +179,11 @@
                                 </a>
                             </div>
 
-                        </div>
-
                     </div>
-
                 </div>
-
             </section>
-
         </div>
-
     </main>
-
 </div>
 
 <script>
