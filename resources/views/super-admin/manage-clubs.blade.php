@@ -171,7 +171,7 @@
                                                     @csrf
                                                     @method('PUT')
                                                     <input type="hidden" name="status" value="inactive">
-                                                    <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                    <button type="submit" class="admin-action-btn" style="background-color: #6b7280; color: #ffffff;">
                                                         Deactivate
                                                     </button>
                                                 </form>
@@ -180,7 +180,7 @@
                                                     @csrf
                                                     @method('PUT')
                                                     <input type="hidden" name="status" value="active">
-                                                    <button type="submit" class="admin-action-btn admin-action-btn--edit">
+                                                    <button type="submit" class="admin-action-btn" style="background-color: #16a34a; color: #ffffff;">
                                                         Activate
                                                     </button>
                                                 </form>
