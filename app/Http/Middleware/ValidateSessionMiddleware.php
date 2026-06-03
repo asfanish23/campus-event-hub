@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Club;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,6 +33,18 @@ class ValidateSessionMiddleware
             // Check if session token is still valid (regenerate if needed)
             if (!$request->session()->has('_token')) {
                 $request->session()->regenerateToken();
+            }
+
+            if ($user->role === 'admin') {
+                $club = Club::find($user->club_id);
+
+                if (! $club || $club->status !== Club::STATUS_ACTIVE) {
+                    auth()->logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+
+                    return redirect()->route('login')->with('error', 'Your club is currently inactive. Please contact HEP.');
+                }
             }
         }
 

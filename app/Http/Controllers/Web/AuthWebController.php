@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Club;
 use App\Models\User;
-use App\Services\ClubActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
@@ -63,6 +63,23 @@ class AuthWebController extends Controller
             return back()->withErrors([
                 'email' => 'Your application has been rejected. Please contact super admin for more details.',
             ])->withInput();
+        }
+
+        if ($user->role === 'admin') {
+            $club = Club::find($user->club_id);
+
+            if (! $club || $club->status !== Club::STATUS_ACTIVE) {
+                Auth::logout();
+                \Log::warning('Login Failed - Inactive Club', [
+                    'user_id' => $user->id,
+                    'club_id' => $user->club_id,
+                    'club_status' => $club?->status,
+                ]);
+
+                return back()->withErrors([
+                    'email' => 'Your club is currently inactive. Please contact HEP.',
+                ])->withInput();
+            }
         }
 
         \Log::info('Login Success - About to Redirect', ['user_id' => $user->id, 'role' => $user->role]);
