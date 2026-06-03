@@ -165,21 +165,20 @@
                                     </td>
                                     <td class="px-6 py-4 text-sm">
                                         @php
-                                            $today = now()->startOfDay();
-                                            $eventDate = \Carbon\Carbon::parse($event->date)->startOfDay();
-                                            
-                                            if ($eventDate < $today) {
-                                                $actualStatus = 'Completed';
-                                                $statusColor = 'gray';
-                                            } elseif ($eventDate->isSameDay($today)) {
-                                                $actualStatus = 'Currently Running';
-                                                $statusColor = 'green';
-                                            } else {
-                                                $actualStatus = 'Upcoming';
-                                                $statusColor = 'yellow';
-                                            }
+                                            $actualStatus = $event->getComputedStatus();
+                                            $displayStatus = match ($actualStatus) {
+                                                'ongoing' => 'Currently Running',
+                                                default => ucfirst($actualStatus),
+                                            };
+                                            $statusColor = match ($actualStatus) {
+                                                'upcoming' => 'yellow',
+                                                'ongoing' => 'green',
+                                                default => 'gray',
+                                            };
                                         @endphp
-                                        <span class="px-3 py-1 bg-{{ $statusColor }}-100 text-{{ $statusColor }}-800 rounded-full text-xs font-semibold">{{ $actualStatus }}</span>
+                                        <span class="px-3 py-1 bg-{{ $statusColor }}-100 text-{{ $statusColor }}-800 rounded-full text-xs font-semibold">
+                                            {{ $displayStatus }}
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         <form method="POST" action="{{ route('super-admin.events.toggle-qr', $event) }}" class="inline">

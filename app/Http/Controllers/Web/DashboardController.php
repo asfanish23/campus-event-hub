@@ -32,7 +32,7 @@ class DashboardController extends Controller
         // Get club statistics
         $totalEvents = Event::where('club_id', $club->id)->count();
         $upcomingEvents = Event::where('club_id', $club->id)
-            ->where('status', 'Upcoming')
+            ->whereComputedStatus('upcoming')
             ->count();
         
         // Calculate average attendance

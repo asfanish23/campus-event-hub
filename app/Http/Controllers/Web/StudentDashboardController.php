@@ -19,10 +19,13 @@ class StudentDashboardController extends Controller
         
         // Get all events with dates today or in the future (upcoming/ongoing)
         // Display only Upcoming or Ongoing status (exclude Completed)
-        $allEvents = Event::where('date', '>=', now()->startOfDay())
-            ->whereRaw("LOWER(status) IN (?, ?)", ['upcoming', 'ongoing'])
+        $allEvents = Event::with('club')
+            ->whereDate('date', '>=', now()->toDateString())
             ->orderBy('date', 'asc')
-            ->get();
+            ->orderBy('start_time', 'asc')
+            ->get()
+            ->filter(fn (Event $event) => in_array($event->getComputedStatus(), ['upcoming', 'ongoing'], true))
+            ->values();
         
         // Use same query for upcomingEvents - no limit, show all upcoming/ongoing events
         $upcomingEvents = $allEvents;
@@ -63,7 +66,7 @@ class StudentDashboardController extends Controller
     {
         // Get club's events
         $query = Event::where('club_id', $club->id)
-            ->where('status', '!=', 'Completed')
+            ->whereDate('date', '>=', now()->toDateString())
             ->orderBy('date', 'asc');
         
         // Filter by year if provided
@@ -71,11 +74,13 @@ class StudentDashboardController extends Controller
             $query->whereYear('date', $request->year);
         }
         
-        $clubEvents = $query->get();
+        $clubEvents = $query->get()
+            ->filter(fn (Event $event) => $event->getComputedStatus() !== 'completed')
+            ->values();
         
         // Get all available years from club events
         $years = Event::where('club_id', $club->id)
-            ->where('status', '!=', 'Completed')
+            ->whereDate('date', '>=', now()->toDateString())
             ->selectRaw('YEAR(date) as year')
             ->distinct()
             ->orderBy('year', 'desc')
@@ -102,7 +107,7 @@ class StudentDashboardController extends Controller
     public function showEvent(Event $event)
     {
         // Make sure event is not completed
-        if ($event->status === 'Completed') {
+        if ($event->getComputedStatus() === 'completed') {
             return redirect()->route('student.dashboard')->with('error', 'This event has been completed');
         }
 
@@ -204,21 +209,28 @@ class StudentDashboardController extends Controller
         $user = Auth::user();
         
         // Get all events with dates in the past (completed events based on date, not status field)
-        $query = Event::where('date', '<', now()->startOfDay());
+        $query = Event::whereDate('date', '<=', now()->toDateString());
         
         // Filter by year if provided
         if ($request->has('year') && $request->year) {
             $query->whereYear('date', $request->year);
         }
         
-        $completedEvents = $query->orderBy('date', 'desc')->get();
+        $completedEvents = $query->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get()
+            ->filter(fn (Event $event) => $event->getComputedStatus() === 'completed')
+            ->values();
         
         // Get all years from completed events for the filter dropdown
-        $years = Event::where('date', '<', now()->startOfDay())
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+        $years = Event::whereDate('date', '<=', now()->toDateString())
+            ->get()
+            ->filter(fn (Event $event) => $event->getComputedStatus() === 'completed')
+            ->pluck('date')
+            ->map(fn ($date) => $date->year)
+            ->unique()
+            ->sortDesc()
+            ->values();
         
         // Get registered events
         $registeredEventIds = StudentEventRegistration::where('user_id', $user->id)

@@ -48,7 +48,7 @@ class EventController extends Controller
 
         // Filter by status
         if ($request->get('status') && $request->get('status') !== '') {
-            $query->where('status', $request->get('status'));
+            $query->whereComputedStatus($request->get('status'));
         }
 
         // Filter by category

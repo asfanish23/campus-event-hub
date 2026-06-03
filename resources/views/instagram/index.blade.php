@@ -237,16 +237,23 @@
 
                                         <!-- Status Badges -->
                                         <div class="flex flex-wrap gap-2 mb-4">
+                                            @php
+                                                $computedStatus = $event->getComputedStatus();
+                                                $displayStatus = match ($computedStatus) {
+                                                    'ongoing' => 'Currently Running',
+                                                    default => ucfirst($computedStatus),
+                                                };
+                                            @endphp
                                             <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold
-                                                @if($event->status === 'Upcoming')
+                                                @if($computedStatus === 'upcoming')
                                                     bg-blue-100 text-blue-800
-                                                @elseif($event->status === 'Currently Running')
+                                                @elseif($computedStatus === 'ongoing')
                                                     bg-green-100 text-green-800
                                                 @else
                                                     bg-gray-100 text-gray-800
                                                 @endif
                                             ">
-                                                {{ $event->status }}
+                                                {{ $displayStatus }}
                                             </span>
 
                                             @if($event->isPostedToInstagram())

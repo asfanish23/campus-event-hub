@@ -164,27 +164,20 @@
                                     </td>
                                     <td class="px-6 py-4">
                                         @php
-                                            $today = now()->startOfDay();
-                                            $eventDate = \Carbon\Carbon::parse($event->date)->startOfDay();
-                                            
-                                            if ($eventDate < $today) {
-                                                $actualStatus = 'Completed';
-                                                $statusColor = 'gray';
-                                            } elseif ($eventDate->isSameDay($today)) {
-                                                $actualStatus = 'Currently Running';
-                                                $statusColor = 'yellow';
-                                            } else {
-                                                $actualStatus = 'Upcoming';
-                                                $statusColor = 'green';
-                                            }
+                                            $actualStatus = $event->getComputedStatus();
+                                            $displayStatus = match ($actualStatus) {
+                                                'ongoing' => 'Currently Running',
+                                                default => ucfirst($actualStatus),
+                                            };
+                                            $statusColor = match ($actualStatus) {
+                                                'upcoming' => 'blue',
+                                                'ongoing' => 'green',
+                                                default => 'gray',
+                                            };
                                         @endphp
-                                        @if($statusColor === 'green')
-                                            <span class="px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-semibold">{{ $actualStatus }}</span>
-                                        @elseif($statusColor === 'yellow')
-                                            <span class="px-3 py-1 bg-yellow-100 text-yellow-600 rounded-full text-xs font-semibold">{{ $actualStatus }}</span>
-                                        @else
-                                            <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">{{ $actualStatus }}</span>
-                                        @endif
+                                        <span class="px-3 py-1 bg-{{ $statusColor }}-100 text-{{ $statusColor }}-600 rounded-full text-xs font-semibold">
+                                            {{ $displayStatus }}
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4">
                                         <div class="flex gap-2 items-center">

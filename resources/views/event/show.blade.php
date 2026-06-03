@@ -264,13 +264,21 @@
                                 
                                 <div>
                                     <p class="text-gray-600 text-sm font-semibold mb-1">Status</p>
-                                    @if($event->status === 'Upcoming')
-                                        <span class="px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-semibold">{{ $event->status }}</span>
-                                    @elseif($event->status === 'Currently Running')
-                                        <span class="px-3 py-1 bg-yellow-100 text-yellow-600 rounded-full text-xs font-semibold">{{ $event->status }}</span>
-                                    @else
-                                        <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">{{ $event->status }}</span>
-                                    @endif
+                                    @php
+                                        $actualStatus = $event->getComputedStatus();
+                                        $displayStatus = match ($actualStatus) {
+                                            'ongoing' => 'Currently Running',
+                                            default => ucfirst($actualStatus),
+                                        };
+                                        $statusColor = match ($actualStatus) {
+                                            'upcoming' => 'blue',
+                                            'ongoing' => 'green',
+                                            default => 'gray',
+                                        };
+                                    @endphp
+                                    <span class="px-3 py-1 bg-{{ $statusColor }}-100 text-{{ $statusColor }}-600 rounded-full text-xs font-semibold">
+                                        {{ $displayStatus }}
+                                    </span>
                                 </div>
 
                                 <div class="pt-4 border-t border-gray-200">

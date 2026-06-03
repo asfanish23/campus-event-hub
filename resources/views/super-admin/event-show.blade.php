@@ -107,8 +107,6 @@
                 <h1 class="text-xl font-bold">Campus Event Hub</h1>
                 <p class="text-sm text-purple-200">Super Admin Panel</p>
             </div>
-
-            <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
                 <a href="{{ route('super-admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-purple-500 transition text-sm">
                     <span>📊</span>
                     <span>Dashboard</span>
@@ -205,7 +203,21 @@
                             </div>
                             <div>
                                 <p class="text-gray-600 text-sm">Status</p>
-                                <span class="px-3 py-1 bg-{{ $event->status === 'Upcoming' ? 'yellow' : ($event->status === 'Currently Running' ? 'green' : 'gray') }}-100 text-{{ $event->status === 'Upcoming' ? 'yellow' : ($event->status === 'Currently Running' ? 'green' : 'gray') }}-800 rounded-full text-sm font-semibold">{{ $event->status }}</span>
+                                @php
+                                    $actualStatus = $event->getComputedStatus();
+                                    $displayStatus = match ($actualStatus) {
+                                        'ongoing' => 'Currently Running',
+                                        default => ucfirst($actualStatus),
+                                    };
+                                    $statusColor = match ($actualStatus) {
+                                        'upcoming' => 'yellow',
+                                        'ongoing' => 'green',
+                                        default => 'gray',
+                                    };
+                                @endphp
+                                <span class="px-3 py-1 bg-{{ $statusColor }}-100 text-{{ $statusColor }}-800 rounded-full text-sm font-semibold">
+                                    {{ $displayStatus }}
+                                </span>
                             </div>
                             <div>
                                 <p class="text-gray-600 text-sm">Date</p>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Event extends Model
@@ -167,6 +168,36 @@ class Event extends Model
         }
 
         return 'upcoming';
+    }
+
+    /**
+     * Apply a computed-status filter using the event date and times.
+     */
+    public function scopeWhereComputedStatus(Builder $query, string $status): Builder
+    {
+        $today = now()->toDateString();
+        $currentTime = now()->format('H:i:s');
+
+        return match (strtolower(trim($status))) {
+            'upcoming' => $query->where(function (Builder $builder) use ($today, $currentTime) {
+                $builder->whereDate('date', '>', $today)
+                    ->orWhere(function (Builder $nested) use ($today, $currentTime) {
+                        $nested->whereDate('date', $today)
+                            ->whereTime('start_time', '>', $currentTime);
+                    });
+            }),
+            'currently running', 'ongoing' => $query->whereDate('date', $today)
+                ->whereTime('start_time', '<=', $currentTime)
+                ->whereTime('end_time', '>', $currentTime),
+            'completed' => $query->where(function (Builder $builder) use ($today, $currentTime) {
+                $builder->whereDate('date', '<', $today)
+                    ->orWhere(function (Builder $nested) use ($today, $currentTime) {
+                        $nested->whereDate('date', $today)
+                            ->whereTime('end_time', '<=', $currentTime);
+                    });
+            }),
+            default => $query,
+        };
     }
 
     /**

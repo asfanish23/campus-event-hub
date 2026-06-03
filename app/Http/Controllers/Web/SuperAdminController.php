@@ -22,7 +22,9 @@ class SuperAdminController extends Controller
         $totalReviews = Review::count();
 
         $upcomingEvents = Event::with('club')
-            ->orderBy('date', 'desc')
+            ->whereComputedStatus('upcoming')
+            ->orderBy('date', 'asc')
+            ->orderBy('start_time', 'asc')
             ->take(5)
             ->get();
 
@@ -41,7 +43,7 @@ class SuperAdminController extends Controller
 
         // Filter by status
         if ($request->get('status') && $request->get('status') !== '') {
-            $query->where('status', $request->get('status'));
+            $query->whereComputedStatus($request->get('status'));
         }
 
         // Filter by club
