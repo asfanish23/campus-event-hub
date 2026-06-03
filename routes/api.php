@@ -106,6 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/clubs/{club}/follow', [ClubFollowController::class, 'follow']);
     Route::delete('/clubs/{club}/follow', [ClubFollowController::class, 'unfollow']);
+    Route::post('/clubs/{club}/unfollow', [ClubFollowController::class, 'unfollow']);
 
     Route::get('likes', [RecommendationController::class, 'getUserLikes']);
     Route::get('/users/{user}/liked-events', [EventController::class, 'getUserLikedEvents']);

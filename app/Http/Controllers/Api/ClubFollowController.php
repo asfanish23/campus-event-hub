@@ -82,7 +82,7 @@ class ClubFollowController extends Controller
                     'is_following' => false,
                     'followers_count' => $club->followers()->count(),
                 ],
-            ], 404);
+            ]);
         }
 
         return response()->json([
