@@ -6,15 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ClubActivityService;
 
 class ClubProfileController extends Controller
 {
+    private ClubActivityService $clubActivityService;
+
+    public function __construct(ClubActivityService $clubActivityService)
+    {
+        $this->clubActivityService = $clubActivityService;
+    }
+
     public function show(Request $request)
     {
-
-        $this->clubActivityService->recordClubActivity($club);
         $user = Auth::user();
         $club = Club::find($user->club_id) ?? new Club();
+
+        $this->clubActivityService->recordClubActivity($club);
         
         // Get club events
         $query = $club->events();
