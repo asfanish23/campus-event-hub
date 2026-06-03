@@ -20,30 +20,47 @@ class ClubProfileController extends Controller
     public function show(Request $request)
     {
         $user = Auth::user();
-        $club = Club::find($user->club_id) ?? new Club();
+        $club = Club::find($user->club_id);
 
-        $this->clubActivityService->recordClubActivity($club);
-        
-        // Get club events
-        $query = $club->events();
-        
-        // Filter by year if provided
-        if ($request->year) {
-            $query->whereYear('date', $request->year);
+        // Only record activity for an existing club. If the user has no club (e.g. super admin),
+        // avoid creating/saving a new Club model via the activity service.
+        if ($club) {
+            $this->clubActivityService->recordClubActivity($club);
         }
         
-        $events = $query->orderBy('date', 'desc')->get();
-        
-        // Get all available years from club events
-        $years = $club->events()
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+        // Get club events (if any)
+        if ($club) {
+            $query = $club->events();
+
+            // Filter by year if provided
+            if ($request->year) {
+                $query->whereYear('date', $request->year);
+            }
+
+            $events = $query->orderBy('date', 'desc')->get();
+
+            // Get all available years from club events
+            $years = $club->events()
+                ->selectRaw('YEAR(date) as year')
+                ->distinct()
+                ->orderBy('year', 'desc')
+                ->pluck('year');
+        } else {
+            $events = collect();
+            $years = collect();
+        }
         
         $selectedYear = $request->year;
         
-        return view('club-profile.show', compact('club', 'events', 'years', 'selectedYear'));
+        // Ensure the view always receives a Club instance to avoid template errors.
+        $clubForView = $club ?? new Club();
+
+        return view('club-profile.show', [
+            'club' => $clubForView,
+            'events' => $events,
+            'years' => $years,
+            'selectedYear' => $selectedYear,
+        ]);
     }
 
     public function edit()
