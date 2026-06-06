@@ -65,13 +65,52 @@ class CartController extends Controller
         return 'ORD-' . strtoupper(Str::random(12)) . '-' . now()->timestamp;
     }
 
+    private function resolveToyyibPayPayorDetails($user): array
+    {
+        $billEmail = trim((string) ($user->email ?? ''));
+        $billPhone = trim((string) ($user->phone ?? ''));
+        $billTo = trim((string) ($user->name ?? ''));
+
+        if ($billTo === '' && $billEmail !== '') {
+            $billTo = Str::of($billEmail)->before('@')->replace(['.', '_', '-'], ' ')->title()->toString();
+        }
+
+        if ($billTo === '') {
+            $billTo = 'Customer';
+        }
+
+        if ($billPhone === '') {
+            $billPhone = '60123456789';
+        }
+
+        return [
+            'billTo' => $billTo,
+            'billEmail' => $billEmail,
+            'billPhone' => $billPhone,
+        ];
+    }
+
+    private function validateToyyibPayPayorDetails(array $payorDetails): array
+    {
+        $missingFields = [];
+
+        foreach (['billTo', 'billEmail', 'billPhone'] as $field) {
+            if (trim((string) ($payorDetails[$field] ?? '')) === '') {
+                $missingFields[] = $field;
+            }
+        }
+
+        return $missingFields;
+    }
+
     private function createToyyibPayBill(
         string $billName,
         string $billDescription,
         int $billAmount,
         string $billExternalReferenceNumber,
         string $returnUrl,
-        string $callbackUrl
+        string $callbackUrl,
+        array $payorDetails
     ): array {
         try {
             $config = $this->getToyyibPayConfig();
@@ -88,8 +127,9 @@ class CartController extends Controller
                 'billCallbackUrl' => $callbackUrl,
                 'billExternalReferenceNo' => $billExternalReferenceNumber,
                 'billPaymentChannel' => 2,
-                'billEmail' => auth()->user()->email,
-                'billPhone' => auth()->user()->phone ?? '60123456789',
+                'billTo' => $payorDetails['billTo'],
+                'billEmail' => $payorDetails['billEmail'],
+                'billPhone' => $payorDetails['billPhone'],
             ];
 
             Log::info('ToyyibPay API Request', [
@@ -426,6 +466,31 @@ class CartController extends Controller
                 $billDescription = substr($billDescription, 0, 97) . '...';
             }
 
+            $payorDetails = $this->resolveToyyibPayPayorDetails($user);
+            $missingPayorFields = $this->validateToyyibPayPayorDetails($payorDetails);
+
+            Log::info('Cart checkout payor details prepared', [
+                'user_id' => $user->id,
+                'billTo' => $payorDetails['billTo'],
+                'billEmail' => $payorDetails['billEmail'],
+                'billPhone' => $payorDetails['billPhone'],
+                'missing_fields' => $missingPayorFields,
+            ]);
+
+            if (!empty($missingPayorFields)) {
+                Log::warning('Cart checkout blocked due to missing ToyyibPay payor fields', [
+                    'user_id' => $user->id,
+                    'missing_fields' => $missingPayorFields,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to start checkout because your payor details are incomplete.',
+                    'error_code' => 'TOYYIBPAY_PAYOR_DETAILS_MISSING',
+                    'missing_fields' => $missingPayorFields,
+                ], 422);
+            }
+
             $externalRef = $this->generateExternalReference();
             $payment = Payment::create([
                 'user_id' => $user->id,
@@ -453,7 +518,8 @@ class CartController extends Controller
                 billAmount: intval($totalAmount * 100),
                 billExternalReferenceNumber: $externalRef,
                 returnUrl: URL::signedRoute('payment.return', ['payment_id' => $payment->id]),
-                callbackUrl: route('payment.callback')
+                callbackUrl: route('payment.callback'),
+                payorDetails: $payorDetails,
             );
 
             if (!$billResponse['success']) {
