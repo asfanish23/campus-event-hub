@@ -66,7 +66,7 @@ Route::middleware('auth')->group(function () {
     // Payment routes
     Route::post('/payment/pay', [PaymentController::class, 'createBill'])->name('payment.pay')->middleware('auth');
     Route::post('/payment/checkout-multiple', [PaymentController::class, 'checkoutMultiple'])->name('payment.checkout.multiple')->middleware('auth');
-    Route::get('/payment/return', [PaymentController::class, 'return'])->name('payment.return')->middleware('auth');
+    Route::get('/payment/return', [PaymentController::class, 'return'])->name('payment.return')->middleware('signed');
     Route::post('/payment/callback', [PaymentController::class, 'callback'])->name('payment.callback'); // No auth - called by ToyyibPay
     
     // Payment test routes (for sandbox/development testing only)

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\CartItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 /**
@@ -89,7 +91,7 @@ class PaymentController extends Controller
                 billDescription: "Order {$externalRef}",
                 billAmount: intval($amount * 100), // Convert to cents
                 billExternalReferenceNumber: $externalRef,
-                returnUrl: route('payment.return', ['payment_id' => $payment->id]),
+                returnUrl: URL::signedRoute('payment.return', ['payment_id' => $payment->id]),
                 callbackUrl: route('payment.callback')
             );
 
@@ -183,7 +185,7 @@ class PaymentController extends Controller
                 billDescription: $billDescription,
                 billAmount: intval($totalAmount * 100), // Convert to cents
                 billExternalReferenceNumber: $externalRef,
-                returnUrl: route('payment.return', ['payment_id' => $payment->id]),
+                returnUrl: URL::signedRoute('payment.return', ['payment_id' => $payment->id]),
                 callbackUrl: route('payment.callback')
             );
 
@@ -331,6 +333,7 @@ class PaymentController extends Controller
         if ($payment->payment_type === 'merchandise') {
             // For merchandise: Create order(s) from payment
             $this->createOrdersFromPayment($payment);
+            $this->clearPurchasedItemsFromCart($payment);
 
         } elseif ($payment->payment_type === 'event_registration') {
             // For event registration: Mark registration as paid
@@ -343,6 +346,49 @@ class PaymentController extends Controller
                 Log::info('Event Registration Marked as Paid', ['registration_id' => $registration->id]);
             }
         }
+    }
+
+    /**
+     * Remove purchased merchandise items from the user's cart after checkout completes.
+     */
+    private function clearPurchasedItemsFromCart(Payment $payment): void
+    {
+        $productIds = [];
+
+        if ($payment->metadata) {
+            $metadata = json_decode($payment->metadata, true);
+            if (isset($metadata['items']) && is_array($metadata['items'])) {
+                foreach ($metadata['items'] as $item) {
+                    if (isset($item['id'])) {
+                        $productIds[] = (int) $item['id'];
+                    }
+                }
+            }
+
+            if (isset($metadata['product_ids']) && is_array($metadata['product_ids'])) {
+                $productIds = array_merge($productIds, array_map('intval', $metadata['product_ids']));
+            }
+        }
+
+        if (empty($productIds) && $payment->related_id) {
+            $productIds[] = (int) $payment->related_id;
+        }
+
+        $productIds = array_values(array_unique(array_filter($productIds)));
+
+        if (empty($productIds)) {
+            return;
+        }
+
+        $deletedCount = CartItem::where('user_id', $payment->user_id)
+            ->whereIn('product_id', $productIds)
+            ->delete();
+
+        Log::info('Cleared purchased items from cart', [
+            'payment_id' => $payment->id,
+            'user_id' => $payment->user_id,
+            'deleted_count' => $deletedCount,
+        ]);
     }
 
     /**

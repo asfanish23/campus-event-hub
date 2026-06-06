@@ -130,6 +130,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cart/add', [CartController::class, 'add']);
     Route::put('/cart/update/{cartItemId}', [CartController::class, 'update']);
     Route::delete('/cart/remove/{cartItemId}', [CartController::class, 'remove']);
+    Route::post('/cart/checkout', [CartController::class, 'checkout']);
 
     // Attendance Endpoints
     Route::post('/attendance/scan', [AttendanceController::class, 'scan']);

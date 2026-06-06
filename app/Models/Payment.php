@@ -25,6 +25,7 @@ class Payment extends Model
         'transaction_time',
         'payment_reference',
         'callback_response',
+        'metadata',
     ];
 
     protected $casts = [
