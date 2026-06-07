@@ -14,7 +14,7 @@ class ShoppingController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with(['club', 'media']);
+        $query = Product::with(['club', 'media', 'variants']);
 
         // Filter by club if specified
         if ($request->filled('club')) {
@@ -65,7 +65,7 @@ class ShoppingController extends Controller
      */
     public function show(Product $product)
     {
-        $product->load(['club', 'media']);
+        $product->load(['club', 'media', 'variants']);
         $relatedProducts = Product::where('club_id', $product->club_id)
             ->where('id', '!=', $product->id)
             ->limit(4)

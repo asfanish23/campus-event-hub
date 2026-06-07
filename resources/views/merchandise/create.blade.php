@@ -137,6 +137,15 @@
                         <input type="text" name="name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent" value="{{ old('name') }}" required>
                     </div>
 
+                    <!-- Product Type -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Product Type</label>
+                        <select name="product_type" id="productType" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">
+                            <option value="simple" {{ old('product_type', 'simple') === 'simple' ? 'selected' : '' }}>Simple Product</option>
+                            <option value="variant" {{ old('product_type') === 'variant' ? 'selected' : '' }}>Product With Variants</option>
+                        </select>
+                    </div>
+
                     <!-- Price -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Price (RM)</label>
@@ -147,6 +156,18 @@
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Stock Quantity</label>
                         <input type="number" name="stock" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent" value="{{ old('stock', 0) }}" required>
+                    </div>
+
+                    <!-- Variant Builder -->
+                    <div class="mb-6" id="variantSection" style="display:none;">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="block text-sm font-semibold text-gray-700">Variant Combinations</label>
+                            <button type="button" id="addVariantBtn" class="text-sm px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                                + Add Variant
+                            </button>
+                        </div>
+                        <div id="variantRows" class="space-y-3"></div>
+                        <p class="text-xs text-gray-500 mt-2">Add each size/color combination with its own price and stock.</p>
                     </div>
 
                     <!-- Category -->
@@ -176,6 +197,68 @@
     </div>
 
     <script>
+        const initialVariants = @json(old('variants', []));
+        const productTypeSelect = document.getElementById('productType');
+        const variantSection = document.getElementById('variantSection');
+        const variantRows = document.getElementById('variantRows');
+        const addVariantBtn = document.getElementById('addVariantBtn');
+        let variantRowIndex = 0;
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function addVariantRow(variant = {}) {
+            const rowId = `variant-row-${variantRowIndex++}`;
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-12 gap-3 items-end bg-gray-50 border border-gray-200 rounded-lg p-4';
+            row.id = rowId;
+            row.innerHTML = `
+                <div class="col-span-3">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Size</label>
+                    <input type="text" name="variants[${variantRowIndex}][size]" value="${escapeHtml(variant.size)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="S, M, L">
+                </div>
+                <div class="col-span-3">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Color</label>
+                    <input type="text" name="variants[${variantRowIndex}][color]" value="${escapeHtml(variant.color)}" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Black, White">
+                </div>
+                <div class="col-span-3">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Price (RM)</label>
+                    <input type="number" step="0.01" min="0" name="variants[${variantRowIndex}][price]" value="${escapeHtml(variant.price ?? '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0.00">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Stock</label>
+                    <input type="number" min="0" name="variants[${variantRowIndex}][stock]" value="${escapeHtml(variant.stock ?? '')}" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0">
+                </div>
+                <div class="col-span-1">
+                    <button type="button" class="remove-variant-btn w-full px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">×</button>
+                </div>
+            `;
+            variantRows.appendChild(row);
+            row.querySelector('.remove-variant-btn').addEventListener('click', () => row.remove());
+        }
+
+        function syncVariantVisibility() {
+            const isVariant = productTypeSelect.value === 'variant';
+            variantSection.style.display = isVariant ? 'block' : 'none';
+            if (isVariant && variantRows.children.length === 0) {
+                addVariantRow();
+            }
+        }
+
+        productTypeSelect.addEventListener('change', syncVariantVisibility);
+        addVariantBtn.addEventListener('click', () => addVariantRow());
+
+        if (Array.isArray(initialVariants) && initialVariants.length > 0) {
+            initialVariants.forEach((variant) => addVariantRow(variant));
+        }
+        syncVariantVisibility();
+
         // Image preview
         const imageInput = document.getElementById('imageInput');
         const imageDropZone = document.getElementById('imageDropZone');

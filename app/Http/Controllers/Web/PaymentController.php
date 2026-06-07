@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -54,6 +56,7 @@ class PaymentController extends Controller
             $validated = $request->validate([
                 'payment_type' => 'required|in:merchandise,event_registration',
                 'product_id' => 'required_if:payment_type,merchandise|exists:products,id',
+                'product_variant_id' => 'nullable|exists:product_variants,id',
                 'event_id' => 'required_if:payment_type,event_registration|exists:events,id',
                 'quantity' => 'nullable|integer|min:1',
             ]);
@@ -62,10 +65,23 @@ class PaymentController extends Controller
 
             // Calculate amount and get item details
             if ($validated['payment_type'] === 'merchandise') {
-                $product = Product::findOrFail($validated['product_id']);
+                $product = Product::with('variants')->findOrFail($validated['product_id']);
                 $quantity = $validated['quantity'] ?? 1;
-                $amount = $product->price * $quantity;
-                $description = "{$quantity}x {$product->name}";
+                $variant = null;
+
+                if ($product->hasVariants() && !empty($validated['product_variant_id'])) {
+                    $variant = $product->variants()->whereKey($validated['product_variant_id'])->first();
+                }
+
+                if ($product->hasVariants() && !$variant) {
+                    return back()->with('error', 'Please select a valid product variant.');
+                }
+
+                $unitPrice = (float) ($variant?->price ?? $product->price);
+                $amount = $unitPrice * $quantity;
+                $description = $variant
+                    ? "{$quantity}x {$product->name} ({$variant->size} / {$variant->color})"
+                    : "{$quantity}x {$product->name}";
                 $relatedId = $product->id;
             } else {
                 $event = Event::findOrFail($validated['event_id']);
@@ -153,10 +169,23 @@ class PaymentController extends Controller
 
             foreach ($items as $item) {
                 $product = Product::findOrFail($item['id']);
-                $itemTotal = $product->price * $item['quantity'];
+                $variant = null;
+
+                if (!empty($item['product_variant_id'])) {
+                    $variant = ProductVariant::where('product_id', $product->id)->whereKey($item['product_variant_id'])->first();
+                }
+
+                if ($product->hasVariants() && !$variant) {
+                    continue;
+                }
+
+                $unitPrice = (float) ($item['price'] ?? $variant?->price ?? $product->price);
+                $itemTotal = $unitPrice * $item['quantity'];
                 $totalAmount += $itemTotal;
                 $productIds[] = $product->id;
-                $descriptions[] = "{$item['quantity']}x {$product->name}";
+                $descriptions[] = $variant
+                    ? "{$item['quantity']}x {$product->name} ({$variant->size} / {$variant->color})"
+                    : "{$item['quantity']}x {$product->name}";
             }
 
             $billDescription = implode(', ', $descriptions);
@@ -353,20 +382,35 @@ class PaymentController extends Controller
      */
     private function clearPurchasedItemsFromCart(Payment $payment): void
     {
-        $productIds = [];
-
         if ($payment->metadata) {
             $metadata = json_decode($payment->metadata, true);
             if (isset($metadata['items']) && is_array($metadata['items'])) {
-                foreach ($metadata['items'] as $item) {
-                    if (isset($item['id'])) {
-                        $productIds[] = (int) $item['id'];
-                    }
-                }
-            }
+                $deletedCount = 0;
 
-            if (isset($metadata['product_ids']) && is_array($metadata['product_ids'])) {
-                $productIds = array_merge($productIds, array_map('intval', $metadata['product_ids']));
+                foreach ($metadata['items'] as $item) {
+                    if (!isset($item['id'])) {
+                        continue;
+                    }
+
+                    $query = CartItem::where('user_id', $payment->user_id)
+                        ->where('product_id', (int) $item['id']);
+
+                    if (!empty($item['product_variant_id'])) {
+                        $query->where('product_variant_id', (int) $item['product_variant_id']);
+                    } else {
+                        $query->whereNull('product_variant_id');
+                    }
+
+                    $deletedCount += $query->delete();
+                }
+
+                Log::info('Cleared purchased items from cart', [
+                    'payment_id' => $payment->id,
+                    'user_id' => $payment->user_id,
+                    'deleted_count' => $deletedCount,
+                ]);
+
+                return;
             }
         }
 
@@ -413,7 +457,18 @@ class PaymentController extends Controller
                 foreach ($metadata['items'] as $item) {
                     $product = Product::find($item['id']);
                     if ($product) {
-                        $this->createOrder($payment, $product, $item['quantity']);
+                        $variant = null;
+                        if (!empty($item['product_variant_id'])) {
+                            $variant = ProductVariant::where('product_id', $product->id)->whereKey($item['product_variant_id'])->first();
+                        }
+
+                        $this->createOrder(
+                            payment: $payment,
+                            product: $product,
+                            quantity: (int) $item['quantity'],
+                            variant: $variant,
+                            unitPrice: (float) ($item['price'] ?? $variant?->price ?? $product->price)
+                        );
                     }
                 }
                 Log::info('Multiple Orders Created from Payment', [
@@ -430,11 +485,17 @@ class PaymentController extends Controller
             if ($product) {
                 // Try to extract quantity from payment metadata or use 1
                 $quantity = 1;
+                    $variant = null;
+                    $unitPrice = (float) $product->price;
                 if ($payment->metadata) {
                     $metadata = json_decode($payment->metadata, true);
                     $quantity = $metadata['quantity'] ?? 1;
+                        if (!empty($metadata['product_variant_id'])) {
+                            $variant = ProductVariant::where('product_id', $product->id)->whereKey($metadata['product_variant_id'])->first();
+                        }
+                        $unitPrice = (float) ($metadata['price'] ?? $variant?->price ?? $product->price);
                 }
-                $this->createOrder($payment, $product, $quantity);
+                    $this->createOrder($payment, $product, $quantity, $variant, $unitPrice);
             } else {
                 Log::warning('Product Not Found for Order Creation', [
                     'payment_id' => $payment->id,
@@ -451,26 +512,42 @@ class PaymentController extends Controller
     /**
      * Create a single order record
      */
-    private function createOrder(Payment $payment, Product $product, int $quantity): void
+    private function createOrder(Payment $payment, Product $product, int $quantity, ?ProductVariant $variant = null, ?float $unitPrice = null): void
     {
         try {
-            \App\Models\Order::create([
-                'user_id' => $payment->user_id,
-                'order_id' => $payment->external_reference_no,
-                'product_id' => $product->id,
-                'customer_name' => $payment->user->name,
-                'quantity' => $quantity,
-                'total' => $quantity,
-                'total_price' => $product->price * $quantity,
-                'payment_method' => 'toyyibpay',
-                'status' => 'completed',
-                'date' => now(),
-            ]);
+            DB::transaction(function () use ($payment, $product, $quantity, $variant, $unitPrice) {
+                $resolvedUnitPrice = $unitPrice ?? (float) ($variant?->price ?? $product->price);
+
+                \App\Models\Order::create([
+                    'user_id' => $payment->user_id,
+                    'order_id' => $payment->external_reference_no,
+                    'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
+                    'customer_name' => $payment->user->name,
+                    'quantity' => $quantity,
+                    'unit_price' => $resolvedUnitPrice,
+                    'variant_size' => $variant?->size,
+                    'variant_color' => $variant?->color,
+                    'total' => $quantity,
+                    'total_price' => $resolvedUnitPrice * $quantity,
+                    'payment_method' => 'toyyibpay',
+                    'status' => 'completed',
+                    'date' => now(),
+                ]);
+
+                if ($variant) {
+                    $variant->decrement('stock', $quantity);
+                    $product->forceFill(['stock' => (int) $product->variants()->sum('stock')])->save();
+                } else {
+                    $product->decrement('stock', $quantity);
+                }
+            });
 
             Log::info('Order Created from Payment', [
                 'payment_id' => $payment->id,
                 'product_id' => $product->id,
                 'quantity' => $quantity,
+                'product_variant_id' => $variant?->id,
             ]);
         } catch (\Exception $e) {
             Log::error('Order Creation Failed', [

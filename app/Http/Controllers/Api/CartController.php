@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -18,19 +19,42 @@ class CartController extends Controller
 {
     private function formatCartItem(CartItem $cartItem): array
     {
-        $price = (float) ($cartItem->product?->price ?? 0);
+        $price = (float) ($cartItem->unit_price ?? $cartItem->productVariant?->price ?? $cartItem->product?->price ?? 0);
 
         return [
             'id' => $cartItem->id,
             'user_id' => $cartItem->user_id,
             'product_id' => $cartItem->product_id,
+            'product_variant_id' => $cartItem->product_variant_id,
             'quantity' => $cartItem->quantity,
             'price' => $price,
             'total_price' => $price * $cartItem->quantity,
+            'variant_size' => $cartItem->variant_size,
+            'variant_color' => $cartItem->variant_color,
             'created_at' => $cartItem->created_at,
             'updated_at' => $cartItem->updated_at,
             'product' => $cartItem->product,
+            'product_variant' => $cartItem->productVariant,
         ];
+    }
+
+    private function resolveVariant(Product $product, ?int $variantId): ?ProductVariant
+    {
+        if (!$variantId) {
+            return null;
+        }
+
+        return $product->variants()->whereKey($variantId)->first();
+    }
+
+    private function resolveProductPrice(Product $product, ?ProductVariant $variant = null): float
+    {
+        return (float) ($variant?->price ?? $product->price ?? 0);
+    }
+
+    private function resolveProductStock(Product $product, ?ProductVariant $variant = null): int
+    {
+        return (int) ($variant?->stock ?? $product->stock ?? 0);
     }
 
     private function unauthorizedResponse(): JsonResponse
@@ -202,18 +226,21 @@ class CartController extends Controller
             $validated = $request->validate([
                 'product_id' => 'required|integer|exists:products,id',
                 'quantity' => 'sometimes|integer|min:1',
+                'product_variant_id' => 'nullable|integer|exists:product_variants,id',
             ]);
 
             $productId = (int) $validated['product_id'];
             $quantity = (int) ($validated['quantity'] ?? 1);
+            $variantId = isset($validated['product_variant_id']) ? (int) $validated['product_variant_id'] : null;
 
             \Log::info('Add to cart request', [
                 'user_id' => $user->id,
                 'product_id' => $productId,
                 'quantity' => $quantity,
+                'product_variant_id' => $variantId,
             ]);
 
-            $product = Product::find($productId);
+            $product = Product::with('variants')->find($productId);
             if (!$product) {
                 return response()->json([
                     'success' => false,
@@ -222,34 +249,80 @@ class CartController extends Controller
                 ], 404);
             }
 
-            $cartItem = CartItem::where('user_id', $user->id)
-                ->where('product_id', $productId)
-                ->first();
+            $variant = $product->hasVariants() ? $this->resolveVariant($product, $variantId) : null;
+            if ($product->hasVariants() && !$variant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select a valid product variant',
+                    'error_code' => 'PRODUCT_VARIANT_NOT_FOUND'
+                ], 422);
+            }
+
+            $unitPrice = $this->resolveProductPrice($product, $variant);
+            $availableStock = $this->resolveProductStock($product, $variant);
+
+            if ($quantity > $availableStock) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Requested quantity exceeds available stock',
+                    'error_code' => 'INSUFFICIENT_STOCK'
+                ], 422);
+            }
+
+            $cartQuery = CartItem::where('user_id', $user->id)
+                ->where('product_id', $productId);
+
+            if ($variant) {
+                $cartQuery->where('product_variant_id', $variant->id);
+            } else {
+                $cartQuery->whereNull('product_variant_id');
+            }
+
+            $cartItem = $cartQuery->first();
 
             if ($cartItem) {
-                $cartItem->quantity += $quantity;
+                $newQuantity = $cartItem->quantity + $quantity;
+                if ($newQuantity > $availableStock) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Requested quantity exceeds available stock',
+                        'error_code' => 'INSUFFICIENT_STOCK'
+                    ], 422);
+                }
+
+                $cartItem->quantity = $newQuantity;
+                $cartItem->unit_price = $unitPrice;
+                $cartItem->product_variant_id = $variant?->id;
+                $cartItem->variant_size = $variant?->size;
+                $cartItem->variant_color = $variant?->color;
                 $cartItem->save();
                 \Log::info('Updated existing cart item', [
                     'cart_item_id' => $cartItem->id,
                     'user_id' => $user->id,
                     'product_id' => $productId,
                     'quantity' => $cartItem->quantity,
+                    'product_variant_id' => $variant?->id,
                 ]);
             } else {
                 $cartItem = CartItem::create([
                     'user_id' => $user->id,
                     'product_id' => $productId,
                     'quantity' => $quantity,
+                    'product_variant_id' => $variant?->id,
+                    'unit_price' => $unitPrice,
+                    'variant_size' => $variant?->size,
+                    'variant_color' => $variant?->color,
                 ]);
                 \Log::info('Created cart item', [
                     'cart_item_id' => $cartItem->id,
                     'user_id' => $user->id,
                     'product_id' => $productId,
                     'quantity' => $quantity,
+                    'product_variant_id' => $variant?->id,
                 ]);
             }
 
-            $cartItem->load('product.media');
+            $cartItem->load('product.media', 'productVariant');
 
             return response()->json([
                 'success' => true,
@@ -289,7 +362,7 @@ class CartController extends Controller
                 return $this->unauthorizedResponse();
             }
 
-            $items = CartItem::with('product.media')
+            $items = CartItem::with('product.media', 'productVariant')
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -338,7 +411,7 @@ class CartController extends Controller
                 'quantity' => 'required|integer|min:1',
             ]);
 
-            $cartItem = CartItem::with('product.media')
+            $cartItem = CartItem::with('product.media', 'productVariant')
                 ->where('id', $cartItemId)
                 ->where('user_id', $user->id)
                 ->first();
@@ -347,9 +420,18 @@ class CartController extends Controller
                 return $this->notFoundResponse();
             }
 
+            $availableStock = $this->resolveProductStock($cartItem->product, $cartItem->productVariant);
+            if ((int) $validated['quantity'] > $availableStock) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Requested quantity exceeds available stock',
+                    'error_code' => 'INSUFFICIENT_STOCK'
+                ], 422);
+            }
+
             $cartItem->quantity = (int) $validated['quantity'];
             $cartItem->save();
-            $cartItem->refresh()->load('product.media');
+            $cartItem->refresh()->load('product.media', 'productVariant');
 
             return response()->json([
                 'success' => true,
@@ -429,7 +511,7 @@ class CartController extends Controller
                 return $this->unauthorizedResponse();
             }
 
-            $items = CartItem::with('product.media')
+            $items = CartItem::with('product.media', 'productVariant')
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -455,7 +537,26 @@ class CartController extends Controller
                     ], 409);
                 }
 
-                $itemTotal = (float) $item->product->price * (int) $item->quantity;
+                if ($item->product->hasVariants() && !$item->productVariant) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'One or more cart items are missing a product variant',
+                        'error_code' => 'INVALID_CART_ITEM',
+                    ], 409);
+                }
+
+                $unitPrice = (float) ($item->unit_price ?? $item->productVariant?->price ?? $item->product?->price ?? 0);
+                $availableStock = $this->resolveProductStock($item->product, $item->productVariant);
+
+                if ((int) $item->quantity > $availableStock) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'One or more cart items are out of stock',
+                        'error_code' => 'OUT_OF_STOCK',
+                    ], 409);
+                }
+
+                $itemTotal = $unitPrice * (int) $item->quantity;
                 $totalAmount += $itemTotal;
                 $productIds[] = $item->product->id;
                 $descriptions[] = $item->quantity . 'x ' . $item->product->name;
@@ -503,8 +604,11 @@ class CartController extends Controller
                     'items' => $items->map(function (CartItem $item) {
                         return [
                             'id' => $item->product_id,
+                            'product_variant_id' => $item->product_variant_id,
                             'quantity' => $item->quantity,
-                            'price' => (float) ($item->product?->price ?? 0),
+                            'price' => (float) ($item->unit_price ?? $item->productVariant?->price ?? $item->product?->price ?? 0),
+                            'variant_size' => $item->variant_size,
+                            'variant_color' => $item->variant_color,
                         ];
                     })->values(),
                     'product_ids' => $productIds,

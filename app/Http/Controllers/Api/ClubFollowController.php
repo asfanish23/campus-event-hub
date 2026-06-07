@@ -101,7 +101,7 @@ class ClubFollowController extends Controller
         $followedClubIds = $user->followedClubs()->pluck('clubs.id')->all();
 
         $clubs = Club::query()
-            ->with(['events', 'products.media'])
+            ->with(['events', 'products.media', 'products.variants'])
             ->withCount('followers')
             ->whereIn('id', $followedClubIds)
             ->orderBy('name')

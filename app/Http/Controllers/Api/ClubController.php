@@ -18,7 +18,7 @@ class ClubController extends Controller
             $user = Auth::guard('sanctum')->user();
             $followedClubIds = $user ? $user->followedClubs()->pluck('clubs.id')->all() : [];
 
-            $clubs = Club::with(['events', 'products.media'])
+            $clubs = Club::with(['events', 'products.media', 'products.variants'])
                 ->withCount('followers')
                 ->orderBy('name')
                 ->get()
@@ -47,7 +47,7 @@ class ClubController extends Controller
             $followedClubIds = $user ? $user->followedClubs()->pluck('clubs.id')->all() : [];
 
             // Eagerly load events and products with media
-            $club->load('events', 'products.media');
+            $club->load('events', 'products.media', 'products.variants');
             $club->loadCount('followers');
             return response()->json([
                 'data' => $this->formatClub($club, $followedClubIds)
@@ -84,7 +84,7 @@ class ClubController extends Controller
                 $clubs->where('category', $category);
             }
             
-            $clubs = $clubs->with(['events', 'products.media'])
+            $clubs = $clubs->with(['events', 'products.media', 'products.variants'])
                 ->withCount('followers')
                 ->orderBy('name')
                 ->get()

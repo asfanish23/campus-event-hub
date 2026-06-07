@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\ProductMedia;
 use App\Models\Order;
 use App\Services\ClubActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -34,7 +36,7 @@ class ProductController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $products = Product::where('club_id', $user->club_id)->with('media')->get();
+        $products = Product::where('club_id', $user->club_id)->with(['media', 'variants'])->get();
         $totalProducts = Product::where('club_id', $user->club_id)->count();
         $totalSales = Order::whereIn('product_id', Product::where('club_id', $user->club_id)->pluck('id'))->sum('total') ?? 0;
         $itemsSold = Order::whereIn('product_id', Product::where('club_id', $user->club_id)->pluck('id'))->sum('quantity') ?? 0;
@@ -51,6 +53,54 @@ class ProductController extends Controller
         return view('merchandise.create');
     }
 
+    private function normalizeVariants(array $variantsInput): array
+    {
+        return collect($variantsInput)
+            ->map(function (array $variant, int $index) {
+                return [
+                    'size' => trim((string) ($variant['size'] ?? '')) ?: null,
+                    'color' => trim((string) ($variant['color'] ?? '')) ?: null,
+                    'price' => (float) ($variant['price'] ?? 0),
+                    'stock' => (int) ($variant['stock'] ?? 0),
+                    'sort_order' => $index,
+                ];
+            })
+            ->filter(function (array $variant) {
+                return $variant['size'] !== null
+                    || $variant['color'] !== null
+                    || $variant['price'] > 0
+                    || $variant['stock'] > 0;
+            })
+            ->values()
+            ->all();
+    }
+
+    private function syncVariantProduct(Product $product, array $variants): void
+    {
+        $product->variants()->delete();
+
+        foreach ($variants as $variant) {
+            $product->variants()->create($variant);
+        }
+
+        $product->forceFill([
+            'price' => collect($variants)->min('price') ?? 0,
+            'stock' => collect($variants)->sum('stock'),
+            'product_type' => 'variant',
+        ])->save();
+    }
+
+    private function syncSimpleProduct(Product $product, array $validated): void
+    {
+        $product->forceFill([
+            'price' => (float) $validated['price'],
+            'stock' => (int) $validated['stock'],
+            'product_type' => 'simple',
+        ])->save();
+
+        $product->variants()->delete();
+    }
+
     /**
      * Store a newly created resource in storage.
      */
@@ -58,12 +108,18 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'price' => 'required|numeric|min:0.01',
-            'stock' => 'required|integer|min:0',
+            'product_type' => 'required|in:simple,variant',
+            'price' => 'required_if:product_type,simple|nullable|numeric|min:0.01',
+            'stock' => 'required_if:product_type,simple|nullable|integer|min:0',
             'category' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'media_files.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,avi,mkv|max:51200'
+            'media_files.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,avi,mkv|max:51200',
+            'variants' => 'required_if:product_type,variant|array|min:1',
+            'variants.*.size' => 'nullable|string|max:255',
+            'variants.*.color' => 'nullable|string|max:255',
+            'variants.*.price' => 'required_if:product_type,variant|numeric|min:0.01',
+            'variants.*.stock' => 'required_if:product_type,variant|integer|min:0',
         ]);
 
         $imagePath = null;
@@ -71,11 +127,24 @@ class ProductController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        $product = Product::create([
-            ...$validated,
-            'image' => $imagePath,
-            'club_id' => Auth::user()->club_id
-        ]);
+        $product = DB::transaction(function () use ($validated, $imagePath, $request) {
+            $product = Product::create([
+                'name' => $validated['name'],
+                'price' => (float) ($validated['price'] ?? 0),
+                'stock' => (int) ($validated['stock'] ?? 0),
+                'category' => $validated['category'],
+                'description' => $validated['description'] ?? null,
+                'image' => $imagePath,
+                'club_id' => Auth::user()->club_id,
+                'product_type' => $validated['product_type'],
+            ]);
+
+            if ($validated['product_type'] === 'variant') {
+                $this->syncVariantProduct($product, $this->normalizeVariants($request->input('variants', [])));
+            }
+
+            return $product;
+        });
 
         // Handle multiple media files
         if ($request->hasFile('media_files')) {
@@ -102,6 +171,7 @@ class ProductController extends Controller
     public function show($merchandise)
     {
         $product = Product::findOrFail($merchandise);
+        $product->load(['media', 'variants']);
         return view('merchandise.show', compact('product'));
     }
 
@@ -111,6 +181,7 @@ class ProductController extends Controller
     public function edit($merchandise)
     {
         $product = Product::findOrFail($merchandise);
+        $product->load(['media', 'variants']);
         return view('merchandise.edit', compact('product'));
     }
 
@@ -123,15 +194,21 @@ class ProductController extends Controller
         
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'price' => 'required|numeric|min:0.01',
-            'stock' => 'required|integer|min:0',
+            'product_type' => 'required|in:simple,variant',
+            'price' => 'required_if:product_type,simple|nullable|numeric|min:0.01',
+            'stock' => 'required_if:product_type,simple|nullable|integer|min:0',
             'category' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'media_files' => 'nullable|array',
             'media_files.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,mp4,mov,avi,mkv|max:51200',
             'deleted_media_ids' => 'nullable|string',
-            'featured_media_id' => 'nullable|integer'
+            'featured_media_id' => 'nullable|integer',
+            'variants' => 'required_if:product_type,variant|array|min:1',
+            'variants.*.size' => 'nullable|string|max:255',
+            'variants.*.color' => 'nullable|string|max:255',
+            'variants.*.price' => 'required_if:product_type,variant|numeric|min:0.01',
+            'variants.*.stock' => 'required_if:product_type,variant|integer|min:0',
         ]);
         $featuredMediaId = $validated['featured_media_id'] ?? null;
         unset($validated['featured_media_id']);
@@ -145,7 +222,12 @@ class ProductController extends Controller
             $validated['image'] = $imagePath;
         }
 
-        $product->update($validated);
+        $product->fill([
+            'name' => $validated['name'],
+            'category' => $validated['category'],
+            'description' => $validated['description'] ?? null,
+            'product_type' => $validated['product_type'],
+        ]);
 
         // Delete selected media files
         $deletedMediaIdsString = $validated['deleted_media_ids'] ?? '';
@@ -181,6 +263,12 @@ class ProductController extends Controller
         }
         
         \Log::info('AFTER_DELETE', ['remaining_media' => $product->media()->count()]);
+
+        if ($validated['product_type'] === 'variant') {
+            $this->syncVariantProduct($product, $this->normalizeVariants($request->input('variants', [])));
+        } else {
+            $this->syncSimpleProduct($product, $validated);
+        }
 
         // Handle new media files
         if ($request->hasFile('media_files')) {

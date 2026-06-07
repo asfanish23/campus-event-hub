@@ -141,6 +141,34 @@
                                 </div>
                             </div>
 
+                            @if($product->product_type === 'variant' && $product->variants->isNotEmpty())
+                                <div class="mb-8">
+                                    <p class="text-gray-600 text-sm font-semibold mb-3">Variants</p>
+                                    <div class="overflow-hidden border border-gray-200 rounded-lg">
+                                        <table class="w-full text-left text-sm">
+                                            <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+                                                <tr>
+                                                    <th class="px-4 py-3">Size</th>
+                                                    <th class="px-4 py-3">Color</th>
+                                                    <th class="px-4 py-3">Price</th>
+                                                    <th class="px-4 py-3">Stock</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($product->variants as $variant)
+                                                    <tr class="border-t border-gray-200">
+                                                        <td class="px-4 py-3">{{ $variant->size ?? 'N/A' }}</td>
+                                                        <td class="px-4 py-3">{{ $variant->color ?? 'N/A' }}</td>
+                                                        <td class="px-4 py-3">RM {{ number_format($variant->price, 2) }}</td>
+                                                        <td class="px-4 py-3">{{ $variant->stock }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Description -->
                             @if($product->description)
                                 <div class="mb-8">

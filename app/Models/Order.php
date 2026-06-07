@@ -13,10 +13,14 @@ class Order extends Model
         'user_id',
         'order_id',
         'product_id',
+        'product_variant_id',
         'customer_name',
         'quantity',
         'total',
         'total_price',
+        'unit_price',
+        'variant_size',
+        'variant_color',
         'payment_method',
         'status',
         'date'
@@ -34,5 +38,10 @@ class Order extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function productVariant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 }

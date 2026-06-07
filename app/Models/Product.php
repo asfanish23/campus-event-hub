@@ -17,7 +17,8 @@ class Product extends Model
         'category',
         'description',
         'image',
-        'club_id'
+        'club_id',
+        'product_type',
     ];
 
     // Always eager load media relationship
@@ -36,6 +37,25 @@ class Product extends Model
     public function cartItems()
     {
         return $this->hasMany(CartItem::class);
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function hasVariants(): bool
+    {
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->isNotEmpty();
+        }
+
+        return $this->variants()->exists();
+    }
+
+    public function isVariantProduct(): bool
+    {
+        return $this->product_type === 'variant';
     }
 
     public function media()

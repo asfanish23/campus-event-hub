@@ -17,6 +17,19 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            @php
+                $hasVariants = $product->hasVariants();
+                $variantData = $product->variants->map(function ($variant) {
+                    return [
+                        'id' => $variant->id,
+                        'size' => $variant->size,
+                        'color' => $variant->color,
+                        'price' => (float) $variant->price,
+                        'stock' => (int) $variant->stock,
+                    ];
+                })->values();
+            @endphp
+
             {{-- Product Images --}}
             <div>
                 <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4">
@@ -63,22 +76,47 @@
                 @endif
 
                 {{-- Price --}}
-                <div class="flex items-baseline gap-2 mb-6">
-                    <span class="text-4xl font-bold text-purple-600">RM {{ number_format($product->price, 2) }}</span>
+                <div class="flex items-baseline gap-2 mb-3">
+                    <span id="product-price" class="text-4xl font-bold text-purple-600">
+                        RM {{ number_format($hasVariants && $product->variants->first() ? $product->variants->first()->price : $product->price, 2) }}
+                    </span>
                 </div>
 
                 {{-- Stock Status --}}
                 <div class="mb-6">
-                    @if($product->stock > 0)
-                        <span class="inline-block px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold">
-                            ✓ In Stock ({{ $product->stock }} available)
-                        </span>
-                    @else
-                        <span class="inline-block px-4 py-2 bg-red-100 text-red-800 rounded-lg font-semibold">
+                    <span id="stock-badge" class="inline-block px-4 py-2 rounded-lg font-semibold {{ ($hasVariants ? ($product->variants->first()?->stock ?? 0) : $product->stock) > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                        @if(($hasVariants ? ($product->variants->first()?->stock ?? 0) : $product->stock) > 0)
+                            ✓ In Stock (<span id="stock-count">{{ $hasVariants ? ($product->variants->first()?->stock ?? 0) : $product->stock }}</span> available)
+                        @else
                             ✕ Out of Stock
-                        </span>
-                    @endif
+                        @endif
+                    </span>
                 </div>
+
+                @if($hasVariants)
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Choose a Variant</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="variant-selector">
+                            @foreach($product->variants as $variant)
+                                <button type="button"
+                                        class="variant-card text-left border rounded-xl p-4 transition {{ $loop->first ? 'border-purple-600 bg-purple-50' : 'border-gray-200 bg-white hover:border-purple-400' }}"
+                                        data-variant-id="{{ $variant->id }}"
+                                        data-price="{{ number_format($variant->price, 2, '.', '') }}"
+                                        data-stock="{{ $variant->stock }}"
+                                        data-size="{{ $variant->size }}"
+                                        data-color="{{ $variant->color }}">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="font-semibold text-gray-900">{{ $variant->size ?? 'One Size' }} / {{ $variant->color ?? 'Default' }}</p>
+                                            <p class="text-sm text-gray-600">Stock: {{ $variant->stock }}</p>
+                                        </div>
+                                        <span class="text-sm font-bold text-purple-600">RM {{ number_format($variant->price, 2) }}</span>
+                                    </div>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Description --}}
                 <div class="mb-8">
@@ -89,42 +127,36 @@
                 </div>
 
                 {{-- Add to Cart Section --}}
-                @if($product->stock > 0)
-                    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                        <div class="mb-4">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
-                            <div class="flex items-center border border-gray-300 rounded-lg w-fit">
-                                <button type="button" onclick="decreaseQuantity()" 
-                                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 transition">−</button>
-                                <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ $product->stock }}"
-                                       class="w-16 text-center border-0 focus:ring-0">
-                                <button type="button" onclick="increaseQuantity({{ $product->stock }})" 
-                                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 transition">+</button>
-                            </div>
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+                        <div class="flex items-center border border-gray-300 rounded-lg w-fit">
+                            <button type="button" onclick="decreaseQuantity()"
+                                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 transition">−</button>
+                            <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ $hasVariants ? ($product->variants->first()?->stock ?? 1) : $product->stock }}"
+                                   class="w-16 text-center border-0 focus:ring-0">
+                            <button type="button" onclick="increaseQuantity()"
+                                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 transition">+</button>
                         </div>
-
-                        <button type="button" onclick="addProductToCart({{ $product->id }}, '{{ $product->name }}', {{ $product->price }}, '{{ $product->primary_image_path ?? 'default.jpg' }}')"
-                                class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold text-lg mb-3">
-                            🛒 Add to Cart
-                        </button>
-
-                        <form method="POST" action="{{ route('payment.pay') }}" class="w-full">
-                            @csrf
-                            <input type="hidden" name="payment_type" value="merchandise">
-                            <input type="hidden" name="product_id" value="{{ $product->id }}">
-                            <input type="hidden" name="quantity" id="checkout-quantity" value="1">
-                            <button type="submit" onclick="document.getElementById('checkout-quantity').value = document.getElementById('quantity').value;" 
-                                    class="w-full px-6 py-3 bg-purple-800 text-white rounded-lg hover:bg-purple-900 transition font-semibold text-lg">
-                                💳 Checkout
-                            </button>
-                        </form>
                     </div>
-                @else
-                    <button disabled 
-                            class="w-full px-6 py-3 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed font-semibold text-lg">
-                        Out of Stock
+
+                    <button type="button" onclick="handleAddToCart()"
+                            class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold text-lg mb-3">
+                        🛒 Add to Cart
                     </button>
-                @endif
+
+                    <form method="POST" action="{{ route('payment.pay') }}" class="w-full" id="checkoutForm">
+                        @csrf
+                        <input type="hidden" name="payment_type" value="merchandise">
+                        <input type="hidden" name="product_id" value="{{ $product->id }}">
+                        <input type="hidden" name="product_variant_id" id="checkout-variant-id" value="{{ $hasVariants ? ($product->variants->first()?->id ?? '') : '' }}">
+                        <input type="hidden" name="quantity" id="checkout-quantity" value="1">
+                        <button type="submit" onclick="prepareCheckout();"
+                                class="w-full px-6 py-3 bg-purple-800 text-white rounded-lg hover:bg-purple-900 transition font-semibold text-lg">
+                            💳 Checkout
+                        </button>
+                    </form>
+                </div>
 
                 {{-- Club Info --}}
                 <div class="bg-gray-50 rounded-lg p-6">
@@ -162,12 +194,10 @@
                                        class="flex-1 px-3 py-2 bg-gray-100 text-gray-900 rounded text-center text-sm font-semibold hover:bg-gray-200 transition">
                                         View
                                     </a>
-                                    @if($related->stock > 0)
-                                        <button onclick="addToCart({{ $related->id }}, '{{ $related->name }}', {{ $related->price }}, '{{ $related->primary_image_path ?? 'default.jpg' }}')"
-                                                class="flex-1 px-3 py-2 bg-purple-600 text-white rounded text-sm font-semibold hover:bg-purple-700 transition">
-                                            Add
-                                        </button>
-                                    @endif
+                                    <a href="{{ route('student.shop.show', $related) }}"
+                                       class="flex-1 px-3 py-2 bg-purple-600 text-white rounded text-center text-sm font-semibold hover:bg-purple-700 transition">
+                                        Add
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -178,7 +208,53 @@
     </div>
 </div>
 
-<script>
+    const productVariants = @json($variantData);
+    let selectedVariant = productVariants.length ? productVariants[0] : null;
+
+    function syncVariantUI() {
+        const quantityInput = document.getElementById('quantity');
+        const checkoutVariantInput = document.getElementById('checkout-variant-id');
+        const stockCount = document.getElementById('stock-count');
+        const stockBadge = document.getElementById('stock-badge');
+        const priceNode = document.getElementById('product-price');
+
+        if (!selectedVariant) {
+            return;
+        }
+
+        priceNode.textContent = `RM ${Number(selectedVariant.price).toFixed(2)}`;
+        stockCount.textContent = selectedVariant.stock;
+        checkoutVariantInput.value = selectedVariant.id;
+        quantityInput.max = selectedVariant.stock;
+
+        if (parseInt(quantityInput.value, 10) > selectedVariant.stock) {
+            quantityInput.value = selectedVariant.stock > 0 ? 1 : 0;
+        }
+
+        stockBadge.className = `inline-block px-4 py-2 rounded-lg font-semibold ${selectedVariant.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+        stockBadge.innerHTML = selectedVariant.stock > 0
+            ? `✓ In Stock (<span id="stock-count">${selectedVariant.stock}</span> available)`
+            : '✕ Out of Stock';
+
+        document.querySelectorAll('.variant-card').forEach((card) => {
+            const isSelected = Number(card.dataset.variantId) === Number(selectedVariant.id);
+            card.classList.toggle('border-purple-600', isSelected);
+            card.classList.toggle('bg-purple-50', isSelected);
+            card.classList.toggle('border-gray-200', !isSelected);
+            card.classList.toggle('bg-white', !isSelected);
+        });
+    }
+
+    function selectVariant(variantId) {
+        const next = productVariants.find((variant) => Number(variant.id) === Number(variantId));
+        if (!next) {
+            return;
+        }
+
+        selectedVariant = next;
+        syncVariantUI();
+    }
+
     function decreaseQuantity() {
         const qty = document.getElementById('quantity');
         if (qty.value > 1) {
@@ -186,68 +262,58 @@
         }
     }
 
-    function increaseQuantity(max) {
+    function increaseQuantity() {
         const qty = document.getElementById('quantity');
+        const max = parseInt(qty.max || '1');
         if (parseInt(qty.value) < max) {
             qty.value = parseInt(qty.value) + 1;
         }
     }
 
-    function addProductToCart(productId, productName, price, imagePath) {
+    function handleAddToCart() {
         const quantity = parseInt(document.getElementById('quantity').value);
-        
-        // Get existing cart from localStorage
-        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const productId = {{ $product->id }};
+        const productName = @json($product->name);
+        const imagePath = @json($product->primary_image_path ?? 'default.jpg');
+        const variantId = selectedVariant ? selectedVariant.id : null;
+        const price = selectedVariant ? Number(selectedVariant.price) : {{ $product->price }};
 
-        // Check if product already in cart
-        const existingItem = cart.find(item => item.id === productId);
-        
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const existingItem = cart.find(item => item.id === productId && (item.product_variant_id || null) === variantId);
+
         if (existingItem) {
             existingItem.quantity += quantity;
+            existingItem.price = price;
+            existingItem.product_variant_id = variantId;
+            existingItem.variant_size = selectedVariant ? selectedVariant.size : null;
+            existingItem.variant_color = selectedVariant ? selectedVariant.color : null;
         } else {
             cart.push({
                 id: productId,
                 name: productName,
                 price: price,
                 image: imagePath,
-                quantity: quantity
+                quantity: quantity,
+                product_variant_id: variantId,
+                variant_size: selectedVariant ? selectedVariant.size : null,
+                variant_color: selectedVariant ? selectedVariant.color : null,
             });
         }
 
-        // Save cart back to localStorage
         localStorage.setItem('cart', JSON.stringify(cart));
-
-        // Show success message
         alert(`${quantity} x ${productName} added to cart!`);
-        
-        // Reset quantity
         document.getElementById('quantity').value = 1;
     }
 
-    function addToCart(productId, productName, price, imagePath) {
-        // Get existing cart from localStorage
-        let cart = JSON.parse(localStorage.getItem('cart')) || [];
-
-        // Check if product already in cart
-        const existingItem = cart.find(item => item.id === productId);
-        
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            cart.push({
-                id: productId,
-                name: productName,
-                price: price,
-                image: imagePath,
-                quantity: 1
-            });
-        }
-
-        // Save cart back to localStorage
-        localStorage.setItem('cart', JSON.stringify(cart));
-
-        // Show success message
-        alert(`${productName} added to cart!`);
+    function prepareCheckout() {
+        document.getElementById('checkout-quantity').value = document.getElementById('quantity').value;
+        document.getElementById('checkout-variant-id').value = selectedVariant ? selectedVariant.id : '';
     }
+
+    document.querySelectorAll('.variant-card').forEach((card) => {
+        card.addEventListener('click', () => selectVariant(card.dataset.variantId));
+    });
+
+    syncVariantUI();
 </script>
 @endsection
