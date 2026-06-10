@@ -4,7 +4,7 @@
 
 ### Bot Details
 - **Username**: @ASEEMSUlTMBot
-- **Token**: `8298576733:AAHv-8cuYZ21no92uskc24NvQ6ON_yaNNFs`
+- **Token**: `YOUR_TELEGRAM_BOT_TOKEN`
 - **Status**: ✅ Ready to use
 
 ### Essential Commands

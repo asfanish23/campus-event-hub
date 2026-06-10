@@ -12,9 +12,10 @@ use Carbon\Carbon;
 
 class TelegramBotService
 {
-    protected $botToken;
-    protected $apiUrl;
-    protected $client;
+    protected ?string $botToken;
+    protected ?string $defaultChatId;
+    protected string $apiUrl;
+    protected Client $client;
     protected $categories = [
         'Academic',
         'Sports', 
@@ -43,11 +44,36 @@ class TelegramBotService
     public function __construct()
     {
         $this->botToken = config('services.telegram.bot_token');
+        $this->defaultChatId = config('services.telegram.chat_id');
         $this->apiUrl = config('services.telegram.api_url');
         $this->client = new Client();
-        
-        // Set up persistent menu
-        $this->setMainMenu();
+
+        if ($this->isConfigured()) {
+            $this->setMainMenu();
+        }
+    }
+
+    public function isConfigured(): bool
+    {
+        return is_string($this->botToken) && $this->botToken !== '';
+    }
+
+    public function sendToDefaultChat(
+        string $text,
+        string $parseMode = 'HTML',
+        ?array $replyMarkup = null
+    ): bool {
+        if (!is_string($this->defaultChatId) || $this->defaultChatId === '') {
+            Log::warning('Telegram default chat is not configured');
+            return false;
+        }
+
+        return $this->sendMessage(
+            (int) $this->defaultChatId,
+            $text,
+            $parseMode,
+            $replyMarkup
+        );
     }
 
     /**
@@ -55,6 +81,10 @@ class TelegramBotService
      */
     protected function setMainMenu(): void
     {
+        if (!$this->isConfigured()) {
+            return;
+        }
+
         try {
             $this->client->post(
                 "{$this->apiUrl}/bot{$this->botToken}/setMyCommands",
@@ -185,6 +215,11 @@ class TelegramBotService
         string $parseMode = 'HTML', 
         ?array $replyMarkup = null
     ): bool {
+        if (!$this->isConfigured()) {
+            Log::warning('Telegram message skipped because TELEGRAM_BOT_TOKEN is not configured');
+            return false;
+        }
+
         try {
             $payload = [
                 'chat_id' => $chatId,
@@ -216,6 +251,10 @@ class TelegramBotService
      */
     protected function answerCallbackQuery(string $queryId): void
     {
+        if (!$this->isConfigured()) {
+            return;
+        }
+
         try {
             $this->client->post(
                 "{$this->apiUrl}/bot{$this->botToken}/answerCallbackQuery",
@@ -698,6 +737,10 @@ class TelegramBotService
      */
     public function getBotInfo(): ?array
     {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
         try {
             $response = $this->client->get("{$this->apiUrl}/bot{$this->botToken}/getMe");
             return json_decode($response->getBody(), true)['result'] ?? null;

@@ -80,7 +80,7 @@ CampusEventHub/
 │       └── Replaced: Entire JavaScript section (~200 lines)
 │
 ├── 🔄 .env (MODIFIED)
-│   └── Added: GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+│   └── Added: GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 │
 └── 📁 Documentation/
     ├── 📄 GEMINI_AI_IMPLEMENTATION.md - Full technical guide

@@ -68,7 +68,7 @@
 
 ### ❌ BEFORE (Basic - Frontend Only)
 ```javascript
-const API_KEY = "AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA";  // ❌ EXPOSED!
+const API_KEY = "YOUR_GEMINI_API_KEY";  // ❌ EXPOSED!
 
 document.getElementById('generateBtn').addEventListener('click', async () => {
     const eventName = document.querySelector('[name="name"]').value;
@@ -482,7 +482,7 @@ return [
 
 ✅ **AFTER**
 ```env
-GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 ```
 
 ---

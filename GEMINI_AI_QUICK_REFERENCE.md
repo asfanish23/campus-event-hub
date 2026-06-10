@@ -18,7 +18,7 @@ function typeEffect(element, text, speed = 15) {
 ### 🔒 2. Hidden API Key (Keamanan)
 **BEFORE:** ❌ API key exposed in frontend JavaScript
 ```javascript
-const API_KEY = "AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA"; // DANGEROUS!
+const API_KEY = "YOUR_GEMINI_API_KEY"; // DANGEROUS!
 ```
 
 **AFTER:** ✅ Secured in backend
@@ -99,7 +99,7 @@ config/
     └── Added Gemini config
 
 .env ⚡ MODIFIED
-└── GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+└── GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 
 routes/
 └── web.php ⚡ MODIFIED

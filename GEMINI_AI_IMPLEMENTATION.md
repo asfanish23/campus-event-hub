@@ -65,7 +65,7 @@ config/services.php
 └── Added Gemini API configuration section
 
 .env
-└── Added GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+└── Added GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 
 resources/views/event/create.blade.php
 ├── Enhanced description textarea with better styling
@@ -113,7 +113,7 @@ Show tweak buttons
 ### API Key Management
 **Location:** `.env` file
 ```env
-GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 ```
 
 **Accessed via:** `config/services.php`

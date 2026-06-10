@@ -115,7 +115,7 @@ Composer automatically installed the required package for Telegram API communica
    - Reads from .env: TELEGRAM_BOT_TOKEN, TELEGRAM_API_URL
 
 3. **`.env`**
-   - Added: `TELEGRAM_BOT_TOKEN=8298576733:AAHv-8cuYZ21no92uskc24NvQ6ON_yaNNFs`
+   - Added: `TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN`
    - Added: `TELEGRAM_API_URL=https://api.telegram.org`
 
 ### Routes
@@ -427,7 +427,7 @@ For issues or questions:
 # Test the service
 php artisan tinker
 → $s = app(\App\Services\TelegramBotService::class);
-→ $s->sendMessage('YOUR_CHAT_ID', 'Test message');
+→ $s->sendMessage('YOUR_TELEGRAM_CHAT_ID', 'Test message');
 
 # Run weekly recommendations
 php artisan telegram:send-weekly-recommendations

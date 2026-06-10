@@ -112,7 +112,9 @@ class InstagramOAuthController extends Controller
             ]);
 
             if (!$response->successful()) {
-                Log::error('Instagram OAuth token exchange failed', ['response' => $response->json()]);
+                Log::error('Instagram OAuth token exchange failed', [
+                    'status' => $response->status(),
+                ]);
                 return redirect()->route('club-profile.edit')->with('error', 'Failed to get Instagram token.');
             }
 

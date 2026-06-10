@@ -134,13 +134,13 @@ New columns added to `instagram_accounts` table:
 
 ```env
 # Instagram OAuth (from Meta Developers)
-INSTAGRAM_APP_ID=1209622097345752        # Your app ID
-INSTAGRAM_APP_SECRET=xxxxxxxxxxxx        # Your app secret
+INSTAGRAM_APP_ID=YOUR_INSTAGRAM_APP_ID        # Your app ID
+INSTAGRAM_APP_SECRET=YOUR_INSTAGRAM_APP_SECRET        # Your app secret
 
 # Existing (already configured)
-INSTAGRAM_ACCESS_TOKEN=IGAAMkJdd4...     # Global fallback token
-INSTAGRAM_BUSINESS_ACCOUNT_ID=17841...   # Global fallback ID
-IMGBB_API_KEY=ffdb2c0aedd4066...        # ImgBB for image hosting
+INSTAGRAM_ACCESS_TOKEN=YOUR_INSTAGRAM_ACCESS_TOKEN     # Global fallback token
+INSTAGRAM_BUSINESS_ACCOUNT_ID=YOUR_INSTAGRAM_BUSINESS_ACCOUNT_ID   # Global fallback ID
+IMGBB_API_KEY=YOUR_IMGBB_API_KEY        # ImgBB for image hosting
 NGROK_URL=https://xxx.ngrok-free.dev    # Your public URL
 ```
 

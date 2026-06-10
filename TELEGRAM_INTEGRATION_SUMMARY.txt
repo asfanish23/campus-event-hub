@@ -75,7 +75,7 @@
 🎯 BOT INFORMATION
 
   Bot Username: @ASEEMSUlTMBot
-  Bot Token: 8298576733:AAHv-8cuYZ21no92uskc24NvQ6ON_yaNNFs
+  Bot Token: YOUR_TELEGRAM_BOT_TOKEN
   Status: Ready to use
 
 📊 IMPLEMENTATION STATUS

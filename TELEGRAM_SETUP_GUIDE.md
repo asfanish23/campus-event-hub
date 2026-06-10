@@ -31,7 +31,7 @@ Your CampusEventHub now has **complete Telegram bot integration** with 3 core fe
 Check `.env` file has these values:
 
 ```env
-TELEGRAM_BOT_TOKEN=8298576733:AAHv-8cuYZ21no92uskc24NvQ6ON_yaNNFs
+TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
 TELEGRAM_API_URL=https://api.telegram.org
 ```
 

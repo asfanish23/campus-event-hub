@@ -82,7 +82,7 @@ php artisan tinker
 # 2. Test the service
 php artisan tinker
 → $s = app(\App\Services\TelegramBotService::class);
-→ $s->sendMessage('YOUR_CHAT_ID', 'Test!');
+→ $s->sendMessage('YOUR_TELEGRAM_CHAT_ID', 'Test!');
 → exit
 
 # 3. Test the command
@@ -121,7 +121,7 @@ php artisan telegram:send-weekly-recommendations
 | Item | Value |
 |------|-------|
 | **Bot Username** | @ASEEMSUlTMBot |
-| **Bot Token** | 8298576733:AAHv-8cuYZ21no92uskc24NvQ6ON_yaNNFs |
+| **Bot Token** | YOUR_TELEGRAM_BOT_TOKEN |
 | **Webhook Endpoint** | `/api/telegram/webhook` |
 | **Package** | irazasyed/telegram-bot-sdk |
 | **Command** | `php artisan telegram:send-weekly-recommendations` |

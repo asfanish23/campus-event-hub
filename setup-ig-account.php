@@ -7,31 +7,16 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 use App\Models\InstagramAccount;
 use App\Models\Club;
 
-// Load .env file directly
-$envPath = __DIR__ . '/.env';
-$envLines = file($envPath);
-$env = [];
-
-foreach($envLines as $line) {
-    $line = trim($line);
-    if($line && strpos($line, '=') !== false && strpos($line, '#') !== 0) {
-        [$key, $value] = explode('=', $line, 2);
-        $env[trim($key)] = trim($value);
-    }
-}
-
-// Get credentials from loaded .env
-$accessToken = $env['INSTAGRAM_ACCESS_TOKEN'] ?? null;
-$businessAccountId = $env['INSTAGRAM_BUSINESS_ACCOUNT_ID'] ?? null;
+$accessToken = config('services.instagram.token');
+$businessAccountId = config('services.instagram.user_id');
 
 if(!$accessToken || !$businessAccountId) {
     echo "❌ Missing INSTAGRAM_ACCESS_TOKEN or INSTAGRAM_BUSINESS_ACCOUNT_ID in .env\n";
     exit;
 }
 
-echo "Using credentials from .env:\n";
+echo "Using Instagram credentials from Laravel configuration.\n";
 echo "Business Account ID: {$businessAccountId}\n";
-echo "Access Token: " . substr($accessToken, 0, 50) . "...\n\n";
 
 // Get first club (Frisbee Club)
 $club = Club::first();

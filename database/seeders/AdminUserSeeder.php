@@ -13,26 +13,27 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::firstOrCreate(
-            ['email' => 'azlinshuha@uitm.edu.my'],
-            [
-                'name' => 'Azlin Shuha',
-                'email' => 'azlinshuha@uitm.edu.my',
-                'password' => Hash::make('admin'),
-                'role' => 'super_admin',
-                'admin_status' => 'approved',
-            ]
-        );
+        $accounts = collect(config('admin.seed_accounts'))
+            ->filter(fn (array $account) => collect($account)->every(
+                fn ($value) => is_string($value) && $value !== ''
+            ));
 
-        User::firstOrCreate(
-            ['email' => 'ADHezri@gmail.com'],
-            [
-                'name' => 'AD Hezri',
-                'email' => 'ADHezri@gmail.com',
-                'password' => Hash::make('admin'),
-                'role' => 'super_admin',
-                'admin_status' => 'approved',
-            ]
-        );
+        if ($accounts->isEmpty()) {
+            throw new \RuntimeException(
+                'Configure SUPER_ADMIN_1_* environment variables before running AdminUserSeeder.'
+            );
+        }
+
+        foreach ($accounts as $account) {
+            User::updateOrCreate(
+                ['email' => $account['email']],
+                [
+                    'name' => $account['name'],
+                    'password' => Hash::make($account['password']),
+                    'role' => 'super_admin',
+                    'admin_status' => 'approved',
+                ]
+            );
+        }
     }
 }

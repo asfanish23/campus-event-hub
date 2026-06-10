@@ -36,7 +36,7 @@ php artisan tinker
 # Should show: ASEEMSUlTMBot
 
 # Test sending message (use your own Telegram chat ID)
-→ $result = $service->sendMessage('YOUR_CHAT_ID', 'Testing the bot!');
+→ $result = $service->sendMessage('YOUR_TELEGRAM_CHAT_ID', 'Testing the bot!');
 → dd($result);
 # Should show success response
 
@@ -154,14 +154,14 @@ curl -X POST http://localhost/api/telegram/link \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "telegram_chat_id": "YOUR_CHAT_ID",
+    "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
     "telegram_username": "your_username"
   }'
 
 # Verify in database
 php artisan tinker
 → \App\Models\User::find(USERID)->telegram_chat_id;
-# Should show YOUR_CHAT_ID
+# Should show YOUR_TELEGRAM_CHAT_ID
 → exit
 ```
 
@@ -245,7 +245,7 @@ php artisan tinker
 
 # Send 10 messages
 → for ($i = 0; $i < 10; $i++) {
-    $service->sendMessage('YOUR_CHAT_ID', "Message $i");
+    $service->sendMessage('YOUR_TELEGRAM_CHAT_ID', "Message $i");
     usleep(500000); // 500ms delay
   }
 
@@ -311,11 +311,11 @@ Save this as `telegram_update.json`:
     "message_id": 1,
     "date": 1707027600,
     "chat": {
-      "id": "YOUR_CHAT_ID",
+      "id": "YOUR_TELEGRAM_CHAT_ID",
       "type": "private"
     },
     "from": {
-      "id": "YOUR_CHAT_ID",
+      "id": "YOUR_TELEGRAM_CHAT_ID",
       "first_name": "Test"
     },
     "text": "/start"

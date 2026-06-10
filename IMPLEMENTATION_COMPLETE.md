@@ -94,7 +94,7 @@
    └── Added: 'gemini' => ['api_key' => env('GEMINI_API_KEY')]
 
 3. .env
-   └── Added: GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+   └── Added: GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 
 4. resources/views/event/create.blade.php
    ├── Enhanced: Description textarea with better border styling
@@ -202,7 +202,7 @@ Response:
 ### Environment Variable
 ```env
 # .env file
-GEMINI_API_KEY=AIzaSyAyvUQ55zXWfmFBmJIe5J7QgcTSLRPajdA
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 ```
 
 ### Service Configuration
