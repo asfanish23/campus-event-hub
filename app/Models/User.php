@@ -37,6 +37,9 @@ class User extends Authenticatable
         'admin_submitted_at',
         'telegram_chat_id',
         'telegram_connected',
+        'google_id',
+        'avatar',
+        'provider',
     ];
 
     /**

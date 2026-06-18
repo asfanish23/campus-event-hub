@@ -20,9 +20,13 @@ use App\Http\Controllers\Web\StudentProfileController;
 use App\Http\Controllers\Web\ShoppingController;
 use App\Http\Controllers\Web\InstagramOAuthController;
 use App\Http\Controllers\Web\AiGeneratorController;
+use App\Http\Controllers\Web\GoogleController;
 
 Route::get('/login', [AuthWebController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthWebController::class, 'login'])->name('login.submit');
+
+Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::get('/forgot-password', [AuthWebController::class, 'showForgotPassword'])->name('password.request');
 Route::post('/forgot-password', [AuthWebController::class, 'sendResetLink'])->name('password.email');
