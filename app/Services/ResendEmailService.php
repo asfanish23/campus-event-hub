@@ -92,4 +92,122 @@ class ResendEmailService
 
         return $this->sendEmail($to, $subject, $html);
     }
+
+    public function sendClubAdminApplicationSubmittedEmail(
+        string $to,
+        string $applicantName,
+        string $applicantEmail,
+        string $clubName,
+        string $applicationReason,
+        string $submittedAt,
+        string $status = 'Pending Review'
+    ): bool {
+        $subject = 'Club Admin Application Submitted Successfully';
+
+        $escapedApplicantName = e($applicantName);
+        $escapedApplicantEmail = e($applicantEmail);
+        $escapedClubName = e($clubName);
+        $escapedApplicationReason = nl2br(e($applicationReason));
+        $escapedSubmittedAt = e($submittedAt);
+        $escapedStatus = e($status);
+
+        $html = "
+            <p>Hello {$escapedApplicantName},</p>
+            <p>Your Club Admin application has been submitted successfully.</p>
+            <ul>
+                <li><strong>Applicant Name:</strong> {$escapedApplicantName}</li>
+                <li><strong>Applicant Email:</strong> {$escapedApplicantEmail}</li>
+                <li><strong>Selected Club:</strong> {$escapedClubName}</li>
+                <li><strong>Application Reason:</strong><br>{$escapedApplicationReason}</li>
+                <li><strong>Submission Date/Time:</strong> {$escapedSubmittedAt}</li>
+                <li><strong>Status:</strong> {$escapedStatus}</li>
+            </ul>
+            <p>Our Super Admin team will review your application shortly.</p>
+            <p>Campus Event Hub</p>
+        ";
+
+        return $this->sendEmail($to, $subject, $html);
+    }
+
+    public function sendClubAdminApplicationNotificationToSuperAdmin(
+        string|array $to,
+        string $applicantName,
+        string $applicantEmail,
+        string $clubName,
+        string $applicationReason,
+        string $submittedAt
+    ): bool {
+        $subject = 'New Club Admin Application Submitted';
+
+        $escapedApplicantName = e($applicantName);
+        $escapedApplicantEmail = e($applicantEmail);
+        $escapedClubName = e($clubName);
+        $escapedApplicationReason = nl2br(e($applicationReason));
+        $escapedSubmittedAt = e($submittedAt);
+
+        $html = "
+            <p>A new Club Admin application has been submitted.</p>
+            <ul>
+                <li><strong>Applicant Name:</strong> {$escapedApplicantName}</li>
+                <li><strong>Applicant Email:</strong> {$escapedApplicantEmail}</li>
+                <li><strong>Club Name:</strong> {$escapedClubName}</li>
+                <li><strong>Application Reason:</strong><br>{$escapedApplicationReason}</li>
+                <li><strong>Submission Date/Time:</strong> {$escapedSubmittedAt}</li>
+            </ul>
+            <p>Please review this application in the Super Admin panel.</p>
+            <p>Campus Event Hub</p>
+        ";
+
+        return $this->sendEmail($to, $subject, $html);
+    }
+
+    public function sendClubAdminApprovedEmail(string $to, string $applicantName, string $clubName): bool
+    {
+        $subject = 'Club Admin Application Approved';
+
+        $escapedApplicantName = e($applicantName);
+        $escapedClubName = e($clubName);
+
+        $html = "
+            <p>Hello {$escapedApplicantName},</p>
+            <p>Your Club Admin application has been approved.</p>
+            <ul>
+                <li><strong>Club Name:</strong> {$escapedClubName}</li>
+                <li><strong>Approval Status:</strong> Approved</li>
+            </ul>
+            <p>You may now access Club Admin features in Campus Event Hub.</p>
+            <p>Campus Event Hub</p>
+        ";
+
+        return $this->sendEmail($to, $subject, $html);
+    }
+
+    public function sendClubAdminRejectedEmail(string $to, string $applicantName, string $clubName, ?string $rejectionReason = null): bool
+    {
+        $subject = 'Club Admin Application Rejected';
+
+        $escapedApplicantName = e($applicantName);
+        $escapedClubName = e($clubName);
+        $escapedReason = $rejectionReason !== null && $rejectionReason !== ''
+            ? nl2br(e($rejectionReason))
+            : null;
+
+        $reasonHtml = $escapedReason
+            ? "<li><strong>Rejection Reason:</strong><br>{$escapedReason}</li>"
+            : '';
+
+        $html = "
+            <p>Hello {$escapedApplicantName},</p>
+            <p>Your Club Admin application has been reviewed.</p>
+            <ul>
+                <li><strong>Club Name:</strong> {$escapedClubName}</li>
+                <li><strong>Rejection Status:</strong> Rejected</li>
+                {$reasonHtml}
+            </ul>
+            <p>You may submit a new application in the future.</p>
+            <p>Campus Event Hub</p>
+        ";
+
+        return $this->sendEmail($to, $subject, $html);
+    }
 }

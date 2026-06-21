@@ -8,12 +8,18 @@ use App\Models\Club;
 use App\Models\Event;
 use App\Models\EventMedia;
 use App\Models\Review;
+use App\Services\ResendEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class SuperAdminController extends Controller
 {
+    public function __construct(private readonly ResendEmailService $resendEmailService)
+    {
+    }
+
     public function dashboard()
     {
         $totalEvents = Event::count();
@@ -347,18 +353,39 @@ class SuperAdminController extends Controller
     public function approveAdmin(User $user)
     {
         $user->update(['admin_status' => 'approved']);
-        
-        // Send approval email
+
+        $clubName = $user->club?->name ?? 'Unknown Club';
+
         try {
-            \Mail::send('emails.admin-approved', ['user' => $user], function ($message) use ($user) {
-                $message->to($user->email)->subject('Admin Application Approved');
-            });
-            $message = 'Admin application approved! Email sent to ' . $user->email;
-        } catch (\Exception $e) {
-            $message = 'Admin application approved! (Email could not be sent - ' . $e->getMessage() . ')';
+            $emailSent = $this->resendEmailService->sendClubAdminApprovedEmail(
+                $user->email,
+                $user->name,
+                $clubName
+            );
+
+            if ($emailSent) {
+                Log::info('Club admin approval email sent', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'club_name' => $clubName,
+                ]);
+            } else {
+                Log::warning('Club admin email failed', [
+                    'action' => 'approve',
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Club admin email failed', [
+                'action' => 'approve',
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error_message' => $e->getMessage(),
+            ]);
         }
 
-        return redirect()->route('super-admin.manage-users')->with('success', $message);
+        return redirect()->route('super-admin.manage-users')->with('success', 'Admin application approved successfully.');
     }
 
     public function rejectAdmin(Request $request, User $user)
@@ -368,21 +395,40 @@ class SuperAdminController extends Controller
         ]);
 
         $user->update(['admin_status' => 'rejected']);
-        
-        // Send rejection email
+
+        $clubName = $user->club?->name ?? 'Unknown Club';
+
         try {
-            \Mail::send('emails.admin-rejected', [
-                'user' => $user,
-                'reason' => $request->rejection_reason
-            ], function ($message) use ($user) {
-                $message->to($user->email)->subject('Admin Application Rejected');
-            });
-            $message = 'Admin application rejected! Email sent to ' . $user->email;
-        } catch (\Exception $e) {
-            $message = 'Admin application rejected! (Email could not be sent - ' . $e->getMessage() . ')';
+            $emailSent = $this->resendEmailService->sendClubAdminRejectedEmail(
+                $user->email,
+                $user->name,
+                $clubName,
+                $request->rejection_reason
+            );
+
+            if ($emailSent) {
+                Log::info('Club admin rejection email sent', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'club_name' => $clubName,
+                ]);
+            } else {
+                Log::warning('Club admin email failed', [
+                    'action' => 'reject',
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Club admin email failed', [
+                'action' => 'reject',
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error_message' => $e->getMessage(),
+            ]);
         }
 
-        return redirect()->route('super-admin.manage-users')->with('success', $message);
+        return redirect()->route('super-admin.manage-users')->with('success', 'Admin application rejected successfully.');
     }
 
     public function deleteUser(User $user)
