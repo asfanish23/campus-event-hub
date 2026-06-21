@@ -77,4 +77,8 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'resend' => [
+        'key' => env('RESEND_KEY'),
+    ],
+
 ];

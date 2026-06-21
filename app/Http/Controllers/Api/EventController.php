@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ResendEmailService;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use App\Models\EventLike;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 
 class EventController extends Controller
 {
+    public function __construct(private readonly ResendEmailService $resendEmailService)
+    {
+    }
+
     private function baseEventQuery()
     {
         return Event::with('club')
@@ -297,6 +302,34 @@ class EventController extends Controller
                 'registration_id' => $registration->id,
                 'registered_at' => $registration->registered_at
             ]);
+
+            try {
+                $eventDateText = $event->date?->format('d M Y') ?? 'TBA';
+                $eventLocation = $event->location ?? 'TBA';
+
+                $emailSent = $this->resendEmailService->sendEventRegistrationConfirmation(
+                    $user->email,
+                    $user->name ?? 'Student',
+                    $event->name,
+                    $eventDateText,
+                    $eventLocation
+                );
+
+                if (!$emailSent) {
+                    \Log::warning('Event registration confirmation email was not sent.', [
+                        'event_id' => $event->id,
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                    ]);
+                }
+            } catch (\Throwable $mailException) {
+                \Log::warning('Event registration confirmation email failed with exception.', [
+                    'event_id' => $event->id,
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'error_message' => $mailException->getMessage(),
+                ]);
+            }
 
             return response()->json([
                 'success' => true,

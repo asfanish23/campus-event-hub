@@ -147,4 +147,3 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthWebController::class, 'logout'])->name('logout');
 });
-

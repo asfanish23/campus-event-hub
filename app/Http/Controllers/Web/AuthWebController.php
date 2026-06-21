@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\User;
+use App\Services\ResendEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
@@ -13,6 +14,10 @@ use Illuminate\Auth\Events\PasswordReset;
 
 class AuthWebController extends Controller
 {
+    public function __construct(private readonly ResendEmailService $resendEmailService)
+    {
+    }
+
     public function showLogin()
     {
         return view('Auth.login');
@@ -151,13 +156,29 @@ class AuthWebController extends Controller
         }
 
         try {
-            // Send password reset link
-            $status = Password::sendResetLink(
-                $request->only('email')
+            $token = Password::broker()->createToken($user);
+
+            $resetUrl = route('password.reset', ['token' => $token, 'email' => $user->email]);
+
+            $sent = $this->resendEmailService->sendPasswordResetEmail(
+                $user->email,
+                $user->name ?? 'User',
+                $resetUrl
             );
 
-            return back()->with('status', trans($status));
+            if (!$sent) {
+                return back()->withErrors([
+                    'email' => 'Unable to send reset link. Please contact support or try again later.',
+                ]);
+            }
+
+            return back()->with('status', 'We have emailed your password reset link.');
         } catch (\Exception $e) {
+            \Log::error('Failed to send password reset email via Resend.', [
+                'email' => $request->email,
+                'error_message' => $e->getMessage(),
+            ]);
+
             return back()->withErrors([
                 'email' => 'Unable to send reset link. Please contact support or try again later.',
             ]);
