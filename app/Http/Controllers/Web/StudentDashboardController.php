@@ -8,11 +8,17 @@ use App\Models\Club;
 use App\Models\StudentEventRegistration;
 use App\Models\EventLike;
 use App\Services\ContentBasedFilteringService;
+use App\Services\ResendEmailService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class StudentDashboardController extends Controller
 {
+    public function __construct(private readonly ResendEmailService $resendEmailService)
+    {
+    }
+
     public function index()
     {
         $user = Auth::user();
@@ -155,10 +161,52 @@ class StudentDashboardController extends Controller
         }
 
         // Create registration
-        StudentEventRegistration::create([
+        $registration = StudentEventRegistration::create([
             'user_id' => $user->id,
             'event_id' => $event->id,
         ]);
+
+        Log::info('Event registration successful', [
+            'registration_id' => $registration->id,
+            'event_id' => $event->id,
+            'user_id' => $user->id,
+            'registered_at' => $registration->created_at,
+        ]);
+
+        try {
+            $eventDateText = $event->date?->format('d M Y') ?? 'TBA';
+            $eventLocation = $event->location ?? 'TBA';
+
+            $emailSent = $this->resendEmailService->sendEventRegistrationConfirmation(
+                $user->email,
+                $user->name ?? 'Student',
+                $event->name,
+                $eventDateText,
+                $eventLocation
+            );
+
+            if ($emailSent) {
+                Log::info('Event registration email sent', [
+                    'event_id' => $event->id,
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                ]);
+            } else {
+                Log::warning('Event registration email failed', [
+                    'event_id' => $event->id,
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'reason' => 'ResendEmailService returned false',
+                ]);
+            }
+        } catch (\Throwable $mailException) {
+            Log::warning('Event registration email failed', [
+                'event_id' => $event->id,
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error_message' => $mailException->getMessage(),
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Successfully registered for the event!']);
     }
