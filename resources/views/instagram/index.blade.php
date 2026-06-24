@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagram Management | Campus Event Hub</title>
+    <title>Social Media Management | Campus Event Hub</title>
     @vite('resources/css/app.css')
 </head>
 <body class="bg-gray-50">
@@ -36,9 +36,9 @@
                 <div class="pt-4 pb-2">
                     <p class="px-4 text-xs text-purple-300 uppercase font-semibold tracking-wide">Social Media</p>
                 </div>
-                <a href="{{ route('instagram.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-500 hover:bg-purple-400 transition text-sm font-medium">
+                <a href="{{ route('social-media.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-500 hover:bg-purple-400 transition text-sm font-medium">
                     <span>📷</span>
-                    <span>Instagram</span>
+                    <span>Social Media</span>
                 </a>
 
                 <div class="pt-4 pb-2">
@@ -80,8 +80,8 @@
                 <div class="mb-8">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h1 class="text-3xl font-bold text-gray-900">📷 Instagram Management</h1>
-                            <p class="text-gray-600 mt-2">Post and schedule your events to Instagram</p>
+                            <h1 class="text-3xl font-bold text-gray-900">📣 Social Media Management</h1>
+                            <p class="text-gray-600 mt-2">Publish and track your event posts across platforms</p>
                         </div>
                         <a href="{{ route('instagram.settings') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2">
                             ⚙️ Settings
@@ -90,7 +90,7 @@
                 </div>
 
                 <!-- Status Alert -->
-                @if(!$hasCredentials)
+                @if(!$hasInstagramCredentials && !$hasFacebookCredentials)
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
                         <div class="flex">
                             <div class="flex-shrink-0">
@@ -98,7 +98,7 @@
                             </div>
                             <div class="ml-3">
                                 <p class="text-sm text-yellow-800">
-                                    Instagram credentials not configured. Please add your credentials in 
+                                    No social media credentials are configured. Please add your credentials in 
                                     <a href="{{ route('instagram.settings') }}" class="font-semibold underline">Settings</a>.
                                 </p>
                             </div>
@@ -112,7 +112,10 @@
                             </div>
                             <div class="ml-3">
                                 <p class="text-sm text-green-800">
-                                    Instagram credentials configured and ready to post!
+                                    Ready platforms:
+                                    @if($hasInstagramCredentials) Instagram @endif
+                                    @if($hasInstagramCredentials && $hasFacebookCredentials) and @endif
+                                    @if($hasFacebookCredentials) Facebook @endif
                                 </p>
                             </div>
                         </div>
@@ -134,7 +137,7 @@
 
                 <!-- Search, Filter & Sort Bar -->
                 <div class="bg-white rounded-lg shadow p-6 mb-8">
-                    <form method="GET" action="{{ route('instagram.index') }}" class="space-y-4">
+                    <form method="GET" action="{{ route('social-media.index') }}" class="space-y-4">
                         <!-- Search Bar -->
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">🔍 Search</label>
@@ -197,7 +200,7 @@
                             <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
                                 🔎 Apply Filters
                             </button>
-                            <a href="{{ route('instagram.index') }}" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition font-semibold">
+                            <a href="{{ route('social-media.index') }}" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition font-semibold">
                                 ↻ Clear
                             </a>
                         </div>
@@ -211,6 +214,28 @@
                     @if($events->count() > 0)
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             @foreach($events as $event)
+                                @php
+                                    $instagramPosted = $event->isPostedToInstagram();
+                                    $facebookPosted = $event->isPostedToFacebook();
+                                    $instagramPostedAt = $event->postedAtForPlatform('instagram') ?? $event->instagram_posted_at;
+                                    $facebookPostedAt = $event->postedAtForPlatform('facebook');
+                                    $latestInstagramPost = $event->latestSocialPost('instagram');
+                                    $latestFacebookPost = $event->latestSocialPost('facebook');
+                                    $instagramPermalink = $latestInstagramPost?->permalink;
+                                    $hasPendingInstagramSchedule = $event->instagram_auto_post && $event->instagram_scheduled_at && !$event->instagram_scheduled_posted && !$instagramPosted;
+                                    $hasCompletedInstagramSchedule = $event->instagram_scheduled_at && ($event->instagram_scheduled_posted || $instagramPosted);
+                                    $facebookPostUrl = null;
+
+                                    if ($latestFacebookPost && $latestFacebookPost->platform_post_id) {
+                                        $facebookPostId = $latestFacebookPost->platform_post_id;
+                                        if (str_contains($facebookPostId, '_')) {
+                                            [$fbPageId, $fbInnerPostId] = explode('_', $facebookPostId, 2);
+                                            $facebookPostUrl = 'https://www.facebook.com/' . $fbPageId . '/posts/' . $fbInnerPostId;
+                                        } else {
+                                            $facebookPostUrl = 'https://www.facebook.com/' . $facebookPostId;
+                                        }
+                                    }
+                                @endphp
                                 <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
                                     <!-- Event Image -->
                                     @if($event->event_image)
@@ -256,99 +281,206 @@
                                                 {{ $displayStatus }}
                                             </span>
 
-                                            @if($event->isPostedToInstagram())
-                                                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
-                                                    📤 Posted
-                                                </span>
-                                            @elseif($event->instagram_auto_post && $event->instagram_scheduled_at && !$event->instagram_scheduled_posted)
-                                                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                                                    ⏱️ Scheduled
-                                                </span>
-                                            @endif
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-pink-500 to-purple-600">
+                                                Instagram
+                                            </span>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white bg-blue-600">
+                                                Facebook
+                                            </span>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white bg-gray-800">
+                                                Threads
+                                            </span>
                                         </div>
 
-                                        <!-- Scheduled Info -->
-                                        @if($event->instagram_scheduled_at && !$event->instagram_scheduled_posted)
-                                            <div class="bg-yellow-50 border border-yellow-200 rounded p-2 mb-4 text-xs">
-                                                <p class="font-semibold text-yellow-800">⏱️ Scheduled Post for:</p>
-                                                <p class="text-yellow-700">{{ $event->instagram_scheduled_at->format('M d, Y H:i') }}</p>
+                                        <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+                                            <div class="bg-gray-50 border border-gray-200 rounded px-2 py-2">
+                                                <span class="font-semibold">Instagram:</span>
+                                                <span class="{{ $instagramPosted ? 'text-green-700' : 'text-gray-600' }}">{{ $instagramPosted ? 'Posted' : 'Not Posted' }}</span>
                                             </div>
-                                        @endif
-
-                                        <!-- Scheduled Repost Info -->
-                                        @if($event->instagram_repost_at && !$event->instagram_reposted)
-                                            <div class="bg-yellow-50 border border-yellow-200 rounded p-2 mb-4 text-xs">
-                                                <p class="font-semibold text-yellow-800">⏱️ Scheduled Repost for:</p>
-                                                <p class="text-yellow-700">{{ $event->instagram_repost_at->format('M d, Y H:i') }}</p>
+                                            <div class="bg-gray-50 border border-gray-200 rounded px-2 py-2">
+                                                <span class="font-semibold">Facebook:</span>
+                                                <span class="{{ $facebookPosted ? 'text-green-700' : 'text-gray-600' }}">{{ $facebookPosted ? 'Posted' : 'Not Posted' }}</span>
                                             </div>
-                                        @endif
+                                            <div class="col-span-2 bg-gray-50 border border-gray-200 rounded px-2 py-2">
+                                                <span class="font-semibold">Threads:</span>
+                                                <span class="text-gray-600">Coming Soon</span>
+                                            </div>
+                                        </div>
 
-                                        <!-- Action Buttons -->
-                                        <div class="space-y-2">
-                                            @if($event->event_image && $hasCredentials)
-                                                @if(!$event->isPostedToInstagram() && !$event->instagram_auto_post)
-                                                    <!-- Post Now Button -->
-                                                    <form action="{{ route('instagram.post-event', $event) }}" method="POST" class="w-full">
-                                                        @csrf
-                                                        <button type="submit" 
-                                                                class="w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                            📤 Post Now
-                                                        </button>
-                                                    </form>
+                                        <button type="button"
+                                            data-open-social-modal="{{ $event->id }}"
+                                                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                            Manage Social Media
+                                        </button>
+                                    </div>
+                                </div>
 
-                                                    <!-- Schedule Button (Modal Trigger) -->
-                                                    <button onclick="openScheduleModal({{ $event->id }})" 
-                                                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                            📅 Schedule Post
-                                                    </button>
-                                                @elseif($event->instagram_auto_post && $event->instagram_scheduled_at && !$event->instagram_scheduled_posted)
-                                                    <!-- Cancel Scheduled Post Button -->
-                                                    <form action="{{ route('instagram.cancel-scheduled', $event) }}" method="POST" class="w-full">
-                                                        @csrf
-                                                        <button type="submit" 
-                                                                class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                                                                onclick="return confirm('Cancel scheduled post?')">
-                                                            ❌ Cancel Schedule
-                                                        </button>
-                                                    </form>
-                                                @else
-                                                    <!-- Repost Options for Already Posted -->
-                                                    @if($event->instagram_auto_repost && $event->instagram_repost_at && !$event->instagram_reposted)
-                                                        <!-- Cancel Repost Schedule Button -->
-                                                        <form action="{{ route('instagram.cancel-repost-schedule', $event) }}" method="POST" class="w-full">
-                                                            @csrf
-                                                            <button type="submit" 
-                                                                    class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-                                                                    onclick="return confirm('Cancel scheduled repost?')">
-                                                                ❌ Cancel Repost Schedule
-                                                            </button>
-                                                        </form>
-                                                    @else
-                                                        <div class="space-y-2">
-                                                            <form action="{{ route('instagram.repost-now', $event) }}" method="POST" class="w-full">
-                                                                @csrf
-                                                                <button type="submit" 
-                                                                        class="w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 hover:from-pink-600 hover:via-red-600 hover:to-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition"
-                                                                        onclick="return confirm('Repost to Instagram now?')">
-                                                                    🔄 Repost Now
-                                                                </button>
-                                                            </form>
-                                                            <button onclick="openRepostModal({{ $event->id }})" 
-                                                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                                                    📅 Schedule Repost
-                                                            </button>
+                                <!-- Social Media Modal -->
+                                <div id="socialModal-{{ $event->id }}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+                                    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                                        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                                            <div>
+                                                <h3 class="text-xl font-bold text-gray-900">Manage Social Media</h3>
+                                                <p class="text-sm text-gray-600">{{ $event->name }}</p>
+                                            </div>
+                                            <button type="button" data-close-social-modal="{{ $event->id }}" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+                                        </div>
+
+                                        <div class="p-6 space-y-6">
+                                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                <!-- Instagram Section -->
+                                                <section class="border border-pink-200 rounded-lg p-4 bg-pink-50">
+                                                    <div class="flex items-center justify-between mb-3">
+                                                        <h4 class="text-lg font-semibold text-gray-900">Instagram</h4>
+                                                        <span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-gradient-to-r from-pink-500 to-purple-600">Instagram</span>
+                                                    </div>
+
+                                                    <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> {{ $instagramPosted ? 'Posted' : 'Not Posted' }}</p>
+                                                    <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> {{ $instagramPostedAt ? $instagramPostedAt->format('M d, Y H:i') : 'N/A' }}</p>
+
+                                                    @if($hasPendingInstagramSchedule)
+                                                        <div class="mt-3 text-xs bg-yellow-100 border border-yellow-300 rounded p-2 text-yellow-800">
+                                                            Scheduled Post: {{ $event->instagram_scheduled_at->format('M d, Y H:i') }}
                                                         </div>
                                                     @endif
-                                                @endif
-                                            @elseif(!$event->event_image)
-                                                <button disabled class="w-full bg-gray-300 text-gray-600 font-semibold py-2 px-4 rounded-lg cursor-not-allowed">
-                                                    🖼️ No Image
+
+                                                    @if($hasCompletedInstagramSchedule)
+                                                        <div class="mt-3 text-xs bg-green-100 border border-green-300 rounded p-2 text-green-800">
+                                                            Scheduled post has already been published.
+                                                        </div>
+                                                    @endif
+
+                                                    @if($event->instagram_repost_at && !$event->instagram_reposted)
+                                                        <div class="mt-2 text-xs bg-yellow-100 border border-yellow-300 rounded p-2 text-yellow-800">
+                                                            Scheduled Repost: {{ $event->instagram_repost_at->format('M d, Y H:i') }}
+                                                        </div>
+                                                    @endif
+
+                                                    <div class="mt-4 space-y-2">
+                                                        <form action="{{ route('social-media.post.instagram', $event->id) }}" method="POST">
+                                                            @csrf
+                                                            <button type="submit" class="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-pink-600 hover:from-pink-600 hover:via-purple-600 hover:to-pink-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                {{ $instagramPosted ? 'Repost' : 'Post Now' }}
+                                                            </button>
+                                                        </form>
+
+                                                        @if(!$hasPendingInstagramSchedule)
+                                                            <button type="button"
+                                                                data-toggle-inline-form="ig-schedule-{{ $event->id }}"
+                                                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                Schedule Post
+                                                            </button>
+
+                                                            <div id="ig-schedule-{{ $event->id }}" class="hidden bg-white border border-blue-200 rounded p-2">
+                                                                <form action="{{ route('instagram.schedule-event', $event) }}" method="POST" class="space-y-2">
+                                                                    @csrf
+                                                                    <input type="datetime-local" name="instagram_scheduled_at" required min="{{ now()->addMinutes(5)->format('Y-m-d\TH:i') }}" class="w-full px-3 py-2 text-sm border border-gray-300 rounded">
+                                                                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded">Confirm Schedule</button>
+                                                                </form>
+                                                            </div>
+                                                        @endif
+
+                                                        @if($instagramPosted)
+                                                                <button type="button"
+                                                                    data-toggle-inline-form="ig-repost-{{ $event->id }}"
+                                                                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                Schedule Repost
+                                                            </button>
+
+                                                            <div id="ig-repost-{{ $event->id }}" class="hidden bg-white border border-indigo-200 rounded p-2">
+                                                                <form action="{{ route('instagram.schedule-repost', $event) }}" method="POST" class="space-y-2">
+                                                                    @csrf
+                                                                    <input type="datetime-local" name="instagram_repost_at" required min="{{ now()->addMinutes(5)->format('Y-m-d\TH:i') }}" class="w-full px-3 py-2 text-sm border border-gray-300 rounded">
+                                                                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded">Confirm Repost Schedule</button>
+                                                                </form>
+                                                            </div>
+                                                        @endif
+
+                                                        @if($hasPendingInstagramSchedule)
+                                                            <form action="{{ route('instagram.cancel-scheduled', $event) }}" method="POST">
+                                                                @csrf
+                                                                <button type="submit" onclick="return confirm('Cancel scheduled post?')" class="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                    Cancel Scheduled Post
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        @if($event->instagram_repost_at && !$event->instagram_reposted)
+                                                            <form action="{{ route('instagram.cancel-repost-schedule', $event) }}" method="POST">
+                                                                @csrf
+                                                                <button type="submit" onclick="return confirm('Cancel scheduled repost?')" class="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                    Cancel Scheduled Repost
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        @if($instagramPermalink)
+                                                            <a href="{{ $instagramPermalink }}" target="_blank" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                View Post
+                                                            </a>
+                                                        @else
+                                                            <button type="button" disabled class="block w-full text-center bg-gray-300 text-gray-600 text-sm font-semibold py-2 px-3 rounded-lg cursor-not-allowed" title="Post URL not available">
+                                                                Post URL not available
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </section>
+
+                                                <!-- Facebook Section -->
+                                                <section class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                                    <div class="flex items-center justify-between mb-3">
+                                                        <h4 class="text-lg font-semibold text-gray-900">Facebook</h4>
+                                                        <span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-blue-600">Facebook</span>
+                                                    </div>
+
+                                                    <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> {{ $facebookPosted ? 'Posted' : 'Not Posted' }}</p>
+                                                    <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> {{ $facebookPostedAt ? $facebookPostedAt->format('M d, Y H:i') : 'N/A' }}</p>
+
+                                                    <div class="mt-4 space-y-2">
+                                                        <form action="{{ route('social-media.post.facebook', $event->id) }}" method="POST">
+                                                            @csrf
+                                                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                {{ $facebookPosted ? 'Repost' : 'Post Now' }}
+                                                            </button>
+                                                        </form>
+
+                                                        @if($facebookPostUrl)
+                                                            <a href="{{ $facebookPostUrl }}" target="_blank" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                View Post
+                                                            </a>
+                                                        @endif
+                                                    </div>
+                                                </section>
+
+                                                <!-- Threads Section -->
+                                                <section class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                                                    <div class="flex items-center justify-between mb-3">
+                                                        <h4 class="text-lg font-semibold text-gray-900">Threads</h4>
+                                                        <span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-gray-800">Coming Soon</span>
+                                                    </div>
+
+                                                    <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> Coming Soon</p>
+                                                    <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> N/A</p>
+
+                                                    <div class="mt-4">
+                                                        <button type="button" disabled class="w-full bg-gray-300 text-gray-600 text-sm font-semibold py-2 px-3 rounded-lg cursor-not-allowed">
+                                                            Integration Pending
+                                                        </button>
+                                                    </div>
+                                                </section>
+                                            </div>
+
+                                            <div class="border-t border-gray-200 pt-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
+                                                <form action="{{ route('social-media.publish-all', $event->id) }}" method="POST">
+                                                    @csrf
+                                                    <button type="submit" class="w-full sm:w-auto bg-gray-900 hover:bg-black text-white font-semibold py-2 px-4 rounded-lg transition">
+                                                        Publish to All Platforms
+                                                    </button>
+                                                </form>
+                                                <button type="button" data-close-social-modal="{{ $event->id }}" class="w-full sm:w-auto bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
+                                                    Close
                                                 </button>
-                                            @else
-                                                <button disabled class="w-full bg-gray-300 text-gray-600 font-semibold py-2 px-4 rounded-lg cursor-not-allowed">
-                                                    ⚙️ Configure First
-                                                </button>
-                                            @endif
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -368,126 +500,58 @@
         </main>
     </div>
 
-    <!-- Schedule Modal -->
-    <div id="scheduleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">📅 Schedule Instagram Post</h2>
-            
-            <form id="scheduleForm" method="POST" class="space-y-4">
-                @csrf
-                
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Date & Time</label>
-                    <input type="datetime-local" name="instagram_scheduled_at" required
-                           min="{{ now()->addMinutes(5)->format('Y-m-d\TH:i') }}"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">
-                    <p class="text-xs text-gray-500 mt-2">⚠️ Minimum 5 minutes in the future</p>
-                </div>
-
-                <div class="bg-blue-50 border border-blue-200 rounded p-3">
-                    <p class="text-sm text-blue-800">
-                        💡 <strong>Tip:</strong> Schedule your post when your audience is most active. The system will post automatically at the scheduled time.
-                    </p>
-                </div>
-
-                <div class="flex gap-2 pt-4">
-                    <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                        ✅ Schedule
-                    </button>
-                    <button type="button" onclick="closeScheduleModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
-                        ❌ Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Repost Modal -->
-    <div id="repostModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">🔄 Schedule Repost</h2>
-            
-            <form id="repostForm" method="POST" class="space-y-4">
-                @csrf
-                
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select Date & Time</label>
-                    <input type="datetime-local" name="instagram_repost_at" required
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent">
-                    <p class="text-xs text-gray-500 mt-2">⚠️ Minimum 5 minutes in the future</p>
-                </div>
-
-                <div class="bg-blue-50 border border-blue-200 rounded p-3">
-                    <p class="text-sm text-blue-800">
-                        💡 <strong>Tip:</strong> Reposting helps increase engagement. Schedule at peak hours for maximum reach.
-                    </p>
-                </div>
-
-                <div class="flex gap-2 pt-4">
-                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                        ✅ Schedule Repost
-                    </button>
-                    <button type="button" onclick="closeRepostModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
-                        ❌ Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script>
-        function openScheduleModal(eventId) {
-            const modal = document.getElementById('scheduleModal');
-            const form = document.getElementById('scheduleForm');
-            form.action = '/instagram/schedule-event/' + eventId;
-            form.method = 'POST';
-            modal.classList.remove('hidden');
+        function openSocialModal(eventId) {
+            const modal = document.getElementById('socialModal-' + eventId);
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
         }
 
-        function closeScheduleModal() {
-            document.getElementById('scheduleModal').classList.add('hidden');
+        function closeSocialModal(eventId) {
+            const modal = document.getElementById('socialModal-' + eventId);
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
         }
 
-        function openRepostModal(eventId) {
-            const modal = document.getElementById('repostModal');
-            const form = document.getElementById('repostForm');
-            form.action = '/instagram/schedule-repost/' + eventId;
-            form.method = 'POST';
-            modal.classList.remove('hidden');
+        function toggleInlineForm(formId) {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.classList.toggle('hidden');
+            }
         }
 
-        function closeRepostModal() {
-            document.getElementById('repostModal').classList.add('hidden');
-        }
+        document.addEventListener('click', function (event) {
+            const openButton = event.target.closest('[data-open-social-modal]');
+            if (openButton) {
+                openSocialModal(openButton.getAttribute('data-open-social-modal'));
+                return;
+            }
 
-        // Close modals when clicking outside
-        document.getElementById('scheduleModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeScheduleModal();
+            const closeButton = event.target.closest('[data-close-social-modal]');
+            if (closeButton) {
+                closeSocialModal(closeButton.getAttribute('data-close-social-modal'));
+                return;
+            }
+
+            const toggleButton = event.target.closest('[data-toggle-inline-form]');
+            if (toggleButton) {
+                toggleInlineForm(toggleButton.getAttribute('data-toggle-inline-form'));
+                return;
+            }
+
+            const modal = event.target;
+            if (modal && modal.id && modal.id.startsWith('socialModal-')) {
+                if (event.target === modal) {
+                    const eventId = modal.id.replace('socialModal-', '');
+                    closeSocialModal(eventId);
+                }
             }
         });
-
-        document.getElementById('repostModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeRepostModal();
-            }
-        });
-
-        // Set minimum datetime for schedule modal
-        const datetimeInput = document.querySelector('input[name="instagram_scheduled_at"]');
-        if (datetimeInput) {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + 5);
-            datetimeInput.setAttribute('min', now.toISOString().slice(0, 16));
-        }
-
-        // Set minimum datetime for repost modal
-        const repostDatetimeInput = document.querySelector('input[name="instagram_repost_at"]');
-        if (repostDatetimeInput) {
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + 5);
-            repostDatetimeInput.setAttribute('min', now.toISOString().slice(0, 16));
-        }
     </script>
+
 </body>
 </html>

@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\SocialPost;
 use App\Services\ClubActivityService;
 use App\Services\InstagramService;
 use App\Services\ImgBBService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 use Exception;
 
 class InstagramController extends Controller
@@ -26,14 +29,16 @@ class InstagramController extends Controller
     }
 
     /**
-     * Display Instagram management dashboard
+     * Display Social Media management dashboard.
      */
     public function index(Request $request)
     {
         $user = Auth::user();
-        
-        // Start query for events
-        $query = Event::where('club_id', $user->club_id);
+
+        $query = Event::where('club_id', $user->club_id)
+            ->with(['socialPosts' => function ($q) {
+                $q->latest('posted_at')->latest('id');
+            }]);
         
         // Search by event name or location
         if ($request->filled('search')) {
@@ -54,13 +59,23 @@ class InstagramController extends Controller
             $query->where('category', $request->get('category'));
         }
         
-        // Filter by Instagram posting status
+        // Filter by Instagram posting status.
         if ($request->filled('instagram_status') && $request->get('instagram_status') !== '') {
             $instagramStatus = $request->get('instagram_status');
             if ($instagramStatus === 'posted') {
-                $query->whereNotNull('instagram_media_id');
+                $query->where(function ($q) {
+                    $q->whereNotNull('instagram_media_id')
+                        ->orWhereHas('socialPosts', function ($socialQuery) {
+                            $socialQuery->where('platform', SocialPost::PLATFORM_INSTAGRAM)
+                                ->where('status', SocialPost::STATUS_POSTED);
+                        });
+                });
             } elseif ($instagramStatus === 'not_posted') {
-                $query->whereNull('instagram_media_id');
+                $query->whereNull('instagram_media_id')
+                    ->whereDoesntHave('socialPosts', function ($socialQuery) {
+                        $socialQuery->where('platform', SocialPost::PLATFORM_INSTAGRAM)
+                            ->where('status', SocialPost::STATUS_POSTED);
+                    });
             } elseif ($instagramStatus === 'scheduled') {
                 $query->where('instagram_auto_post', true)
                       ->whereNotNull('instagram_scheduled_at')
@@ -101,92 +116,420 @@ class InstagramController extends Controller
             ->distinct()
             ->pluck('category');
         
-        // Get Instagram credentials status
-        $hasCredentials = config('services.instagram.token') && config('services.instagram.user_id');
-        
-        return view('instagram.index', compact('events', 'hasCredentials', 'categories'));
+        $hasInstagramCredentials = !empty(config('services.instagram.token')) && !empty(config('services.instagram.user_id'));
+        $hasFacebookCredentials = !empty(config('services.facebook.page_access_token')) && !empty(config('services.facebook.page_id'));
+        $hasCredentials = $hasInstagramCredentials;
+
+        return view('instagram.index', compact(
+            'events',
+            'hasCredentials',
+            'hasInstagramCredentials',
+            'hasFacebookCredentials',
+            'categories'
+        ));
     }
 
     /**
-     * Manually post an event to Instagram
+     * Backward-compatible route handler.
      */
     public function postEvent(Request $request, Event $event)
     {
-        Log::info('postEvent() method called', [
-            'event_id' => $event->id,
-            'event_name' => $event->name,
-        ]);
-        
-        // Validate the event has an image
+        $this->ensureOwnedEvent($event);
+        return $this->postToInstagram($event->id);
+    }
+
+    /**
+     * Post or repost to Instagram.
+     */
+    public function postToInstagram(int $eventId)
+    {
+        $event = $this->getOwnedEvent($eventId);
+
         if (!$event->event_image) {
-            Log::warning('Event has no image', ['event_id' => $event->id]);
             return redirect()->back()->with('error', 'Event must have an image to post to Instagram');
         }
 
+        if (empty(config('services.instagram.token')) || empty(config('services.instagram.user_id'))) {
+            return redirect()->back()->with('error', 'Instagram credentials are not configured.');
+        }
+
+        $alreadyPosted = $event->isPostedToInstagram();
+        $hadPendingSchedule = $this->hasPendingInstagramSchedule($event);
+
         try {
-            // Get local image path
-            $localImagePath = storage_path('app/public/' . $event->event_image);
-            
-            Log::info('Preparing to post event to Instagram', [
-                'event_id' => $event->id,
-                'local_path' => $localImagePath,
-                'file_exists' => file_exists($localImagePath),
-            ]);
-
-            // Upload image to ImgBB to get a public URL
-            $publicImageUrl = $this->imgbbService->uploadImage($localImagePath, 'event-' . $event->id);
-            
-            Log::info('Image uploaded to ImgBB', [
-                'event_id' => $event->id,
-                'imgbb_url' => $publicImageUrl,
-            ]);
-
-            // Create caption WITHOUT emojis
-            $caption = $event->name . "\n\n" . 
-                      $event->date->format('M d, Y') . "\n" . 
-                      $event->location . "\n\n" . 
-                      $event->description;
-            
-            // Post to Instagram using ImgBB URL
+            $publicImageUrl = $this->makeEventImagePublicUrl($event, 'instagram');
+            $caption = $this->buildCaption($event, $alreadyPosted);
             $response = $this->instagramService->postImage($publicImageUrl, $caption);
-            
-            if ($response['success']) {
-                // Save the Instagram media ID to the event
-                $event->update([
-                    'instagram_media_id' => $response['media_id'],
-                    'instagram_posted_at' => now(),
-                ]);
-                
-                Log::info('Event successfully posted to Instagram', [
-                    'event_id' => $event->id,
-                    'media_id' => $response['media_id']
-                ]);
-                
-                return redirect()->back()->with('success', 'Event posted to Instagram successfully!');
-            } else {
-                Log::warning('Failed to post event to Instagram', [
-                    'event_id' => $event->id,
-                    'error' => $response['message']
-                ]);
-                
-                return redirect()->back()->with('error', 'Failed to post to Instagram: ' . $response['message']);
+
+            if (!($response['success'] ?? false)) {
+                $message = $response['message'] ?? 'Unknown Instagram API error';
+                $this->recordSocialPost($event, SocialPost::PLATFORM_INSTAGRAM, SocialPost::STATUS_FAILED, null);
+
+                return redirect()->back()->with('error', 'Failed to post to Instagram: ' . $message);
             }
-        } catch (Exception $e) {
-            Log::error('Exception posting to Instagram', [
-                'event_id' => $event->id,
-                'error' => $e->getMessage()
+
+            $postedAt = now();
+
+            $event->update([
+                'instagram_media_id' => $response['media_id'] ?? null,
+                'instagram_posted_at' => $postedAt,
             ]);
-            
-            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
+
+            if ($hadPendingSchedule) {
+                $this->clearInstagramScheduleState($event);
+            }
+
+            $instagramPermalink = $this->fetchInstagramPermalink($response['media_id'] ?? null);
+
+            $this->recordSocialPost(
+                $event,
+                SocialPost::PLATFORM_INSTAGRAM,
+                SocialPost::STATUS_POSTED,
+                $response['media_id'] ?? null,
+                $postedAt,
+                $instagramPermalink
+            );
+
+            $actionText = $alreadyPosted ? 'reposted' : 'posted';
+
+            return redirect()->back()->with('success', 'Event ' . $actionText . ' to Instagram successfully!');
+        } catch (Exception $e) {
+            Log::error('Instagram posting error', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->recordSocialPost($event, SocialPost::PLATFORM_INSTAGRAM, SocialPost::STATUS_FAILED, null);
+
+            return redirect()->back()->with('error', 'Error posting to Instagram: ' . $e->getMessage());
         }
     }
 
     /**
-     * Schedule an event to be posted to Instagram
+     * Post or repost to Facebook Page.
+     */
+    public function postToFacebook(int $eventId)
+    {
+        $event = $this->getOwnedEvent($eventId);
+
+        if (!$event->event_image) {
+            return redirect()->back()->with('error', 'Event must have an image to post to Facebook');
+        }
+
+        $pageId = config('services.facebook.page_id');
+        $accessToken = config('services.facebook.page_access_token');
+        if (empty($pageId) || empty($accessToken)) {
+            return redirect()->back()->with('error', 'Facebook credentials are not configured.');
+        }
+
+        $alreadyPosted = $event->isPostedToFacebook();
+
+        try {
+            $publicImageUrl = $this->makeEventImagePublicUrl($event, 'facebook');
+            $caption = $this->buildCaption($event, $alreadyPosted);
+            $response = $this->postImageToFacebook($pageId, $accessToken, $publicImageUrl, $caption);
+
+            if (!($response['success'] ?? false)) {
+                $message = $response['message'] ?? 'Unknown Facebook API error';
+                $this->recordSocialPost($event, SocialPost::PLATFORM_FACEBOOK, SocialPost::STATUS_FAILED, null);
+
+                return redirect()->back()->with('error', 'Failed to post to Facebook: ' . $message);
+            }
+
+            $postedAt = now();
+            $this->recordSocialPost(
+                $event,
+                SocialPost::PLATFORM_FACEBOOK,
+                SocialPost::STATUS_POSTED,
+                $response['post_id'] ?? null,
+                $postedAt
+            );
+
+            $actionText = $alreadyPosted ? 'reposted' : 'posted';
+
+            return redirect()->back()->with('success', 'Event ' . $actionText . ' to Facebook successfully!');
+        } catch (Exception $e) {
+            Log::error('Facebook posting error', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->recordSocialPost($event, SocialPost::PLATFORM_FACEBOOK, SocialPost::STATUS_FAILED, null);
+
+            return redirect()->back()->with('error', 'Error posting to Facebook: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Publish or repost event to all currently supported platforms.
+     */
+    public function publishAllPlatforms(int $eventId)
+    {
+        $event = $this->getOwnedEvent($eventId);
+
+        if (!$event->event_image) {
+            return redirect()->back()->with('error', 'Event must have an image to publish on all platforms');
+        }
+
+        $results = [];
+
+        $results['instagram'] = $this->postToInstagramSilently($event);
+        $results['facebook'] = $this->postToFacebookSilently($event);
+
+        $successPlatforms = collect($results)
+            ->filter(fn ($result) => $result['success'])
+            ->keys()
+            ->map(fn ($platform) => ucfirst($platform))
+            ->implode(', ');
+
+        $failedMessages = collect($results)
+            ->filter(fn ($result) => !$result['success'])
+            ->map(fn ($result, $platform) => ucfirst($platform) . ': ' . ($result['message'] ?? 'Failed'))
+            ->implode(' | ');
+
+        if ($successPlatforms === '') {
+            return redirect()->back()->with('error', 'Publish failed on all platforms. ' . $failedMessages);
+        }
+
+        if ($failedMessages !== '') {
+            return redirect()->back()->with('success', 'Published on: ' . $successPlatforms . '. Partial issues: ' . $failedMessages);
+        }
+
+        return redirect()->back()->with('success', 'Published successfully on all available platforms.');
+    }
+
+    private function postToInstagramSilently(Event $event): array
+    {
+        if (empty(config('services.instagram.token')) || empty(config('services.instagram.user_id'))) {
+            return ['success' => false, 'message' => 'Instagram credentials are not configured'];
+        }
+
+        try {
+            $hadPendingSchedule = $this->hasPendingInstagramSchedule($event);
+
+            $publicImageUrl = $this->makeEventImagePublicUrl($event, 'instagram');
+            $caption = $this->buildCaption($event, $event->isPostedToInstagram());
+            $response = $this->instagramService->postImage($publicImageUrl, $caption);
+
+            if (!($response['success'] ?? false)) {
+                $message = $response['message'] ?? 'Unknown Instagram API error';
+                $this->recordSocialPost($event, SocialPost::PLATFORM_INSTAGRAM, SocialPost::STATUS_FAILED, null);
+                return ['success' => false, 'message' => $message];
+            }
+
+            $postedAt = now();
+            $event->update([
+                'instagram_media_id' => $response['media_id'] ?? null,
+                'instagram_posted_at' => $postedAt,
+            ]);
+
+            if ($hadPendingSchedule) {
+                $this->clearInstagramScheduleState($event);
+            }
+
+            $instagramPermalink = $this->fetchInstagramPermalink($response['media_id'] ?? null);
+
+            $this->recordSocialPost(
+                $event,
+                SocialPost::PLATFORM_INSTAGRAM,
+                SocialPost::STATUS_POSTED,
+                $response['media_id'] ?? null,
+                $postedAt,
+                $instagramPermalink
+            );
+
+            return ['success' => true, 'message' => 'Posted to Instagram'];
+        } catch (Exception $e) {
+            Log::error('Silent Instagram publish failed', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->recordSocialPost($event, SocialPost::PLATFORM_INSTAGRAM, SocialPost::STATUS_FAILED, null);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    private function postToFacebookSilently(Event $event): array
+    {
+        $pageId = config('services.facebook.page_id');
+        $accessToken = config('services.facebook.page_access_token');
+
+        if (empty($pageId) || empty($accessToken)) {
+            return ['success' => false, 'message' => 'Facebook credentials are not configured'];
+        }
+
+        try {
+            $publicImageUrl = $this->makeEventImagePublicUrl($event, 'facebook');
+            $caption = $this->buildCaption($event, $event->isPostedToFacebook());
+            $response = $this->postImageToFacebook($pageId, $accessToken, $publicImageUrl, $caption);
+
+            if (!($response['success'] ?? false)) {
+                $message = $response['message'] ?? 'Unknown Facebook API error';
+                $this->recordSocialPost($event, SocialPost::PLATFORM_FACEBOOK, SocialPost::STATUS_FAILED, null);
+                return ['success' => false, 'message' => $message];
+            }
+
+            $this->recordSocialPost(
+                $event,
+                SocialPost::PLATFORM_FACEBOOK,
+                SocialPost::STATUS_POSTED,
+                $response['post_id'] ?? null,
+                now()
+            );
+
+            return ['success' => true, 'message' => 'Posted to Facebook'];
+        } catch (Exception $e) {
+            Log::error('Silent Facebook publish failed', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->recordSocialPost($event, SocialPost::PLATFORM_FACEBOOK, SocialPost::STATUS_FAILED, null);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    private function postImageToFacebook(string $pageId, string $accessToken, string $imageUrl, string $caption): array
+    {
+        $response = Http::asForm()->post("https://graph.facebook.com/v22.0/{$pageId}/photos", [
+            'url' => $imageUrl,
+            'caption' => $caption,
+            'published' => 'true',
+            'access_token' => $accessToken,
+        ]);
+
+        if (!$response->successful()) {
+            $error = data_get($response->json(), 'error.message', $response->body());
+            return ['success' => false, 'message' => $error];
+        }
+
+        return [
+            'success' => true,
+            'post_id' => data_get($response->json(), 'post_id') ?? data_get($response->json(), 'id'),
+        ];
+    }
+
+    private function getOwnedEvent(int $eventId): Event
+    {
+        return Event::where('id', $eventId)
+            ->where('club_id', Auth::user()->club_id)
+            ->firstOrFail();
+    }
+
+    private function ensureOwnedEvent(Event $event): void
+    {
+        if ($event->club_id !== Auth::user()->club_id) {
+            abort(403);
+        }
+    }
+
+    private function makeEventImagePublicUrl(Event $event, string $platform): string
+    {
+        $localImagePath = storage_path('app/public/' . $event->event_image);
+
+        return $this->imgbbService->uploadImage($localImagePath, $platform . '-event-' . $event->id . '-' . now()->format('YmdHis'));
+    }
+
+    private function hasPendingInstagramSchedule(Event $event): bool
+    {
+        return (bool) $event->instagram_auto_post
+            && !is_null($event->instagram_scheduled_at)
+            && !$event->instagram_scheduled_posted;
+    }
+
+    private function clearInstagramScheduleState(Event $event): void
+    {
+        $event->update([
+            'instagram_auto_post' => false,
+            'instagram_scheduled_at' => null,
+            'instagram_scheduled_posted' => true,
+        ]);
+    }
+
+    private function fetchInstagramPermalink(?string $mediaId): ?string
+    {
+        if (empty($mediaId)) {
+            return null;
+        }
+
+        $accessToken = config('services.instagram.token');
+        if (empty($accessToken)) {
+            return null;
+        }
+
+        try {
+            // Primary attempt via Graph API endpoint.
+            $response = Http::get("https://graph.facebook.com/v22.0/{$mediaId}", [
+                'fields' => 'permalink',
+                'access_token' => $accessToken,
+            ]);
+
+            if ($response->successful() && $response->json('permalink')) {
+                return (string) $response->json('permalink');
+            }
+
+            // Fallback for Instagram graph host compatibility.
+            $fallback = Http::get("https://graph.instagram.com/v18.0/{$mediaId}", [
+                'fields' => 'permalink',
+                'access_token' => $accessToken,
+            ]);
+
+            if ($fallback->successful() && $fallback->json('permalink')) {
+                return (string) $fallback->json('permalink');
+            }
+
+            Log::warning('Instagram permalink unavailable', [
+                'media_id' => $mediaId,
+                'primary_status' => $response->status(),
+                'fallback_status' => $fallback->status(),
+            ]);
+        } catch (Exception $e) {
+            Log::warning('Instagram permalink fetch failed', [
+                'media_id' => $mediaId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    private function buildCaption(Event $event, bool $isRepost = false): string
+    {
+        $prefix = $isRepost ? "REPOST\n\n" : '';
+
+        return $prefix
+            . $event->name . "\n\n"
+            . $event->date->format('M d, Y') . "\n"
+            . $event->location . "\n\n"
+            . $event->description;
+    }
+
+    private function recordSocialPost(
+        Event $event,
+        string $platform,
+        string $status,
+        ?string $platformPostId,
+        ?Carbon $postedAt = null,
+        ?string $permalink = null
+    ): SocialPost {
+        return SocialPost::create([
+            'event_id' => $event->id,
+            'platform' => $platform,
+            'platform_post_id' => $platformPostId,
+            'permalink' => $permalink,
+            'status' => $status,
+            'posted_at' => $postedAt,
+        ]);
+    }
+
+    /**
+     * Schedule an event to be posted to Instagram.
      */
     public function scheduleEvent(Request $request, Event $event)
     {
-        // Validate input
+        $this->ensureOwnedEvent($event);
+
         $validated = $request->validate([
             'instagram_scheduled_at' => 'required|date_format:Y-m-d\TH:i|after:now',
         ], [
@@ -195,43 +538,32 @@ class InstagramController extends Controller
             'instagram_scheduled_at.after' => 'Scheduled time must be in the future',
         ]);
 
-        // Validate the event has an image
         if (!$event->event_image) {
             return redirect()->back()->with('error', 'Event must have an image to schedule Instagram posting');
         }
 
         try {
-            // Convert datetime-local format to timestamp
             $scheduledAt = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['instagram_scheduled_at']);
 
-            // Update event with scheduling info
             $event->update([
                 'instagram_auto_post' => true,
                 'instagram_scheduled_at' => $scheduledAt,
                 'instagram_scheduled_posted' => false,
             ]);
 
-            Log::info('Event scheduled for Instagram posting', [
-                'event_id' => $event->id,
-                'scheduled_at' => $scheduledAt,
-            ]);
-
             return redirect()->back()->with('success', 'Event scheduled to post on Instagram at ' . $scheduledAt->format('M d, Y H:i') . '!');
         } catch (\Exception $e) {
-            Log::error('Error scheduling Instagram post', [
-                'event_id' => $event->id,
-                'error' => $e->getMessage()
-            ]);
-
             return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
     /**
-     * Cancel scheduled Instagram post
+     * Cancel scheduled Instagram post.
      */
     public function cancelScheduledPost(Event $event)
     {
+        $this->ensureOwnedEvent($event);
+
         try {
             $event->update([
                 'instagram_auto_post' => false,
@@ -255,7 +587,7 @@ class InstagramController extends Controller
     }
 
     /**
-     * Show settings page
+     * Show settings page.
      */
     public function settings()
     {
@@ -271,81 +603,21 @@ class InstagramController extends Controller
     }
 
     /**
-     * Test Instagram API with a public image
-     */
-    /**
-     * Repost an event immediately to Instagram
+     * Repost an event immediately to Instagram.
      */
     public function repostNow(Request $request, Event $event)
     {
-        // Validate the event has an image
-        if (!$event->event_image) {
-            return redirect()->back()->with('error', 'Event must have an image to repost to Instagram');
-        }
-
-        // Validate event has been posted before
-        if (!$event->isPostedToInstagram()) {
-            return redirect()->back()->with('error', 'Event has not been posted to Instagram yet');
-        }
-
-        try {
-            // Get local image path
-            $localImagePath = storage_path('app/public/' . $event->event_image);
-            
-            Log::info('Preparing to repost event to Instagram', [
-                'event_id' => $event->id,
-                'local_path' => $localImagePath,
-            ]);
-
-            // Upload image to ImgBB to get a public URL
-            $publicImageUrl = $this->imgbbService->uploadImage($localImagePath, 'event-repost-' . $event->id);
-            
-            Log::info('Image uploaded to ImgBB for repost', [
-                'event_id' => $event->id,
-                'imgbb_url' => $publicImageUrl,
-            ]);
-
-            // Create caption
-            $caption = "🔄 REPOST\n\n" . 
-                      $event->name . "\n\n" . 
-                      $event->date->format('M d, Y') . "\n" . 
-                      $event->location . "\n\n" . 
-                      $event->description;
-            
-            // Post to Instagram using ImgBB URL
-            $response = $this->instagramService->postImage($publicImageUrl, $caption);
-            
-            if ($response['success']) {
-                Log::info('Event successfully reposted to Instagram', [
-                    'event_id' => $event->id,
-                    'media_id' => $response['media_id']
-                ]);
-                
-                return redirect()->back()->with('success', 'Event reposted to Instagram successfully!');
-            } else {
-                Log::warning('Failed to repost event to Instagram', [
-                    'event_id' => $event->id,
-                    'error' => $response['message']
-                ]);
-                
-                return redirect()->back()->with('error', 'Failed to repost to Instagram: ' . $response['message']);
-            }
-        } catch (Exception $e) {
-            Log::error('Exception reposting to Instagram', [
-                'event_id' => $event->id,
-                'error' => $e->getMessage()
-            ]);
-            
-            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
-        }
+        $this->ensureOwnedEvent($event);
+        return $this->postToInstagram($event->id);
     }
 
     /**
-     * Schedule a repost of an event to Instagram
+     * Schedule a repost of an event to Instagram.
      */
     public function scheduleRepost(Request $request, Event $event)
     {
-        // Validate input
+        $this->ensureOwnedEvent($event);
+
         $validated = $request->validate([
             'instagram_repost_at' => 'required|date_format:Y-m-d\TH:i|after:now',
         ], [
@@ -354,48 +626,36 @@ class InstagramController extends Controller
             'instagram_repost_at.after' => 'Scheduled time must be in the future',
         ]);
 
-        // Validate the event has an image
         if (!$event->event_image) {
             return redirect()->back()->with('error', 'Event must have an image to schedule reposting');
         }
 
-        // Validate event has been posted before
         if (!$event->isPostedToInstagram()) {
             return redirect()->back()->with('error', 'Event has not been posted to Instagram yet');
         }
 
         try {
-            // Convert datetime-local format to timestamp
             $repostAt = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['instagram_repost_at']);
 
-            // Save repost schedule
             $event->update([
                 'instagram_auto_repost' => true,
                 'instagram_repost_at' => $repostAt,
                 'instagram_reposted' => false,
             ]);
 
-            Log::info('Event scheduled for Instagram reposting', [
-                'event_id' => $event->id,
-                'repost_at' => $repostAt,
-            ]);
-
             return redirect()->back()->with('success', 'Event scheduled to repost on Instagram at ' . $repostAt->format('M d, Y H:i') . '!');
         } catch (\Exception $e) {
-            Log::error('Error scheduling Instagram repost', [
-                'event_id' => $event->id,
-                'error' => $e->getMessage()
-            ]);
-
             return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
     /**
-     * Cancel scheduled Instagram repost
+     * Cancel scheduled Instagram repost.
      */
     public function cancelRepostSchedule(Event $event)
     {
+        $this->ensureOwnedEvent($event);
+
         try {
             $event->update([
                 'instagram_auto_repost' => false,
@@ -418,6 +678,9 @@ class InstagramController extends Controller
         }
     }
 
+    /**
+     * Test Instagram API with a public image.
+     */
     public function testApi()
     {
         try {

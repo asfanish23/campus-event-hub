@@ -4,20 +4,24 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\Club;
+use App\Models\InstagramAccount;
 use Illuminate\Support\Facades\Log;
 
 class ScheduledInstagramPostService
 {
     private ClubInstagramService $clubInstagramService;
+    private InstagramService $instagramService;
     private InstagramNotificationService $notificationService;
     private ImgBBService $imgbbService;
 
     public function __construct(
         ClubInstagramService $clubInstagramService,
+        InstagramService $instagramService,
         InstagramNotificationService $notificationService,
         ImgBBService $imgbbService
     ) {
         $this->clubInstagramService = $clubInstagramService;
+        $this->instagramService = $instagramService;
         $this->notificationService = $notificationService;
         $this->imgbbService = $imgbbService;
     }
@@ -165,13 +169,62 @@ class ScheduledInstagramPostService
                 ];
             }
 
-            // Post to club's Instagram account
-            $response = $this->clubInstagramService->postEventToClubInstagram(
-                $club,
-                $localImagePath,
-                $caption,
-                (string)$event->id
-            );
+            $clubInstagramAccount = $club->instagramAccount;
+            $response = null;
+            $credentialSource = null;
+
+            if ($clubInstagramAccount) {
+                $credentialSource = 'instagram_accounts';
+
+                Log::info('Scheduled Instagram credential source selected', [
+                    'source' => $credentialSource,
+                    'event_id' => $event->id,
+                    'club_id' => $club->id,
+                    'instagram_account_id' => $clubInstagramAccount->id,
+                ]);
+
+                $response = $this->clubInstagramService->postEventToClubInstagram(
+                    $club,
+                    $localImagePath,
+                    $caption,
+                    (string)$event->id
+                );
+            } else {
+                $hasAnyInstagramAccounts = InstagramAccount::query()->exists();
+
+                if (!$hasAnyInstagramAccounts) {
+                    $credentialSource = 'services.instagram';
+
+                    Log::info('Scheduled Instagram credential source selected', [
+                        'source' => $credentialSource,
+                        'event_id' => $event->id,
+                        'club_id' => $club->id,
+                        'reason' => 'instagram_accounts_table_empty',
+                    ]);
+
+                    if (empty(config('services.instagram.token')) || empty(config('services.instagram.user_id'))) {
+                        return [
+                            'success' => false,
+                            'message' => 'Instagram credentials are not configured in services.instagram',
+                        ];
+                    }
+
+                    $publicImageUrl = $this->imgbbService->uploadImage($localImagePath, 'event-scheduled-' . $event->id);
+                    $response = $this->instagramService->postImage($publicImageUrl, $caption);
+                } else {
+                    Log::warning('Scheduled Instagram posting skipped due to missing club account', [
+                        'event_id' => $event->id,
+                        'club_id' => $club->id,
+                        'source' => 'instagram_accounts',
+                        'reason' => 'club_has_no_instagram_account',
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => 'No Instagram account configured for this club',
+                    ];
+                }
+            }
 
             if ($response['success']) {
                 // Save Instagram media ID and timestamp to event
@@ -179,6 +232,8 @@ class ScheduledInstagramPostService
                     'instagram_media_id' => $response['media_id'],
                     'instagram_posted_at' => now(),
                     'instagram_last_synced_at' => now(),
+                    'instagram_auto_post' => false,
+                    'instagram_scheduled_at' => null,
                     'instagram_scheduled_posted' => true,
                 ]);
 
@@ -188,6 +243,7 @@ class ScheduledInstagramPostService
                 Log::info('Scheduled event successfully posted to Instagram', [
                     'event_id' => $event->id,
                     'club_id' => $club->id,
+                    'credential_source' => $credentialSource,
                     'media_id' => $response['media_id'],
                     'scheduled_at' => $event->instagram_scheduled_at,
                 ]);
@@ -201,6 +257,7 @@ class ScheduledInstagramPostService
                 Log::warning('Failed to post scheduled event to Instagram', [
                     'event_id' => $event->id,
                     'club_id' => $club->id,
+                    'credential_source' => $credentialSource,
                     'error' => $response['message']
                 ]);
 

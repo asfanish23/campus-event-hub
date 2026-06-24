@@ -39,6 +39,12 @@ return [
         'app_secret' => env('INSTAGRAM_APP_SECRET'),
     ],
 
+    // Facebook Page Graph API configuration
+    'facebook' => [
+        'page_id' => env('FACEBOOK_PAGE_ID'),
+        'page_access_token' => env('FACEBOOK_PAGE_ACCESS_TOKEN'),
+    ],
+
     // ImgBB Image Hosting API configuration
     'imgbb' => [
         'key' => env('IMGBB_API_KEY'),

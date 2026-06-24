@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Event extends Model
 {
@@ -92,11 +93,72 @@ class Event extends Model
     }
 
     /**
+     * Relationship: Event has many social media post records.
+     */
+    public function socialPosts()
+    {
+        return $this->hasMany(\App\Models\SocialPost::class);
+    }
+
+    /**
+     * Get latest social post record for a platform.
+     */
+    public function latestSocialPost(string $platform): ?\App\Models\SocialPost
+    {
+        if ($this->relationLoaded('socialPosts')) {
+            return $this->socialPosts
+                ->where('platform', $platform)
+                ->sortByDesc(function (\App\Models\SocialPost $post) {
+                    return optional($post->posted_at)->timestamp ?? 0;
+                })
+                ->first();
+        }
+
+        return $this->socialPosts()
+            ->where('platform', $platform)
+            ->latest('posted_at')
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Check if event has been posted on a given platform.
+     */
+    public function isPostedToPlatform(string $platform): bool
+    {
+        $latest = $this->latestSocialPost($platform);
+
+        return $latest?->status === \App\Models\SocialPost::STATUS_POSTED;
+    }
+
+    /**
+     * Get last posted datetime for a platform.
+     */
+    public function postedAtForPlatform(string $platform): ?Carbon
+    {
+        $latest = $this->latestSocialPost($platform);
+
+        if ($latest?->status === \App\Models\SocialPost::STATUS_POSTED) {
+            return $latest->posted_at;
+        }
+
+        return null;
+    }
+
+    /**
      * Check if event has been posted to Instagram
      */
     public function isPostedToInstagram(): bool
     {
-        return !is_null($this->instagram_media_id);
+        return $this->isPostedToPlatform(\App\Models\SocialPost::PLATFORM_INSTAGRAM) || !is_null($this->instagram_media_id);
+    }
+
+    /**
+     * Check if event has been posted to Facebook.
+     */
+    public function isPostedToFacebook(): bool
+    {
+        return $this->isPostedToPlatform(\App\Models\SocialPost::PLATFORM_FACEBOOK);
     }
 
     /**

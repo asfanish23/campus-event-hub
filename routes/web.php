@@ -93,7 +93,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('merchandise', ProductController::class);
     Route::resource('orders', OrderController::class)->only(['index', 'update']);
 
-    // Instagram management routes
+    // Social media management routes
+    Route::get('/social-media', [InstagramController::class, 'index'])->name('social-media.index');
+    Route::post('/social-media/events/{eventId}/instagram', [InstagramController::class, 'postToInstagram'])->name('social-media.post.instagram');
+    Route::post('/social-media/events/{eventId}/facebook', [InstagramController::class, 'postToFacebook'])->name('social-media.post.facebook');
+    Route::post('/social-media/events/{eventId}/publish-all', [InstagramController::class, 'publishAllPlatforms'])->name('social-media.publish-all');
+
+    // Instagram management routes (legacy compatibility)
     Route::get('/instagram', [InstagramController::class, 'index'])->name('instagram.index');
     Route::post('/instagram/post-event/{event}', [InstagramController::class, 'postEvent'])->name('instagram.post-event');
     Route::post('/instagram/schedule-event/{event}', [InstagramController::class, 'scheduleEvent'])->name('instagram.schedule-event');
