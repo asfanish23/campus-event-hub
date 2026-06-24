@@ -152,7 +152,7 @@
                                         </form>
                                         <button
                                             type="button"
-                                            onclick="openRejectModal({{ $application->id }})"
+                                            data-reject-user-id="{{ $application->id }}"
                                             class="admin-action-btn admin-action-btn--delete">
                                             Reject
                                         </button>
@@ -266,7 +266,7 @@
                                             <div class="admin-actions">
                                                 <button
                                                     type="button"
-                                                    onclick="openUserDetailsModal({{ $user->id }})"
+                                                    data-view-user-id="{{ $user->id }}"
                                                     class="admin-action-btn admin-action-btn--view">
                                                     View
                                                 </button>
@@ -274,7 +274,9 @@
                                                 @if($user->role !== 'super_admin')
                                                     <button 
                                                         type="button"
-                                                        onclick="openEditRoleModal({{ $user->id }}, {!! json_encode($user->name) !!}, {!! json_encode($user->role) !!})"
+                                                        data-edit-user-id="{{ $user->id }}"
+                                                        data-edit-user-name="{{ $user->name }}"
+                                                        data-edit-user-role="{{ $user->role }}"
                                                         class="admin-action-btn admin-action-btn--edit">
                                                         Edit
                                                     </button>
@@ -473,6 +475,28 @@
                     roleFilter.addEventListener('change', applyFilters);
                     statusFilter.addEventListener('change', applyFilters);
                 }
+
+                document.querySelectorAll('[data-reject-user-id]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        openRejectModal(button.dataset.rejectUserId);
+                    });
+                });
+
+                document.querySelectorAll('[data-view-user-id]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        openUserDetailsModal(button.dataset.viewUserId);
+                    });
+                });
+
+                document.querySelectorAll('[data-edit-user-id]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        openEditRoleModal(
+                            button.dataset.editUserId,
+                            button.dataset.editUserName,
+                            button.dataset.editUserRole
+                        );
+                    });
+                });
             });
 
         function openRejectModal(userId) {

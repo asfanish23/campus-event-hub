@@ -238,7 +238,7 @@ class SuperAdminController extends Controller
         // Handle profile photo upload
         if ($request->hasFile('profile_photo')) {
             if ($club->profile_photo) {
-                \Storage::disk('public')->delete($club->profile_photo);
+                Storage::disk('public')->delete($club->profile_photo);
             }
             $validated['profile_photo'] = $request->file('profile_photo')->store('clubs', 'public');
         }
@@ -246,7 +246,7 @@ class SuperAdminController extends Controller
         // Handle background photo upload
         if ($request->hasFile('background_photo')) {
             if ($club->background_photo) {
-                \Storage::disk('public')->delete($club->background_photo);
+                Storage::disk('public')->delete($club->background_photo);
             }
             $validated['background_photo'] = $request->file('background_photo')->store('clubs', 'public');
         }
@@ -457,10 +457,17 @@ class SuperAdminController extends Controller
         $oldRole = $user->role;
         $newRole = $request->role;
 
-        $user->update([
+        $updates = [
             'role' => $newRole,
-            'admin_status' => null, // Clear admin status if changing roles
-        ]);
+            'admin_status' => $newRole === 'admin' ? 'approved' : 'not_admin',
+        ];
+
+        if ($newRole !== 'admin') {
+            $updates['admin_application_reason'] = null;
+            $updates['admin_submitted_at'] = null;
+        }
+
+        $user->update($updates);
 
         return redirect()->route('super-admin.manage-users')->with('success', 'Role updated! ' . $user->name . ' role changed from ' . ucfirst($oldRole) . ' to ' . ucfirst($newRole));
     }
