@@ -181,7 +181,7 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-center">
-                                        <form method="POST" action="{{ route('super-admin.events.toggle-qr', $event) }}" class="inline">
+                                        <form method="POST" action="{{ route('super-admin.events.toggle-qr', $event->id) }}" class="inline">
                                             @csrf
                                             <button type="submit" class="px-3 py-2 rounded-lg text-xs font-semibold transition {{ $event->qr_active ? 'bg-green-400 text-white shadow-lg shadow-green-500/50 animate-pulse' : 'bg-gray-300 text-gray-700 hover:bg-gray-400' }}">
                                                 {{ $event->qr_active ? '✓ Active' : 'Inactive' }}

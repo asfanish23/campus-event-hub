@@ -92,6 +92,22 @@
             <div class="p-8">
                 <a href="{{ route('super-admin.manage-events') }}" class="text-purple-600 hover:text-purple-800 mb-6 inline-block">← Back to Events</a>
 
+                <div class="bg-white rounded-lg shadow p-6 mb-6 max-w-4xl flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">QR Attendance</p>
+                        <p class="text-lg font-semibold {{ $event->qr_active ? 'text-green-700' : 'text-gray-700' }}">
+                            {{ $event->qr_active ? 'Active' : 'Inactive' }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">Toggle QR attendance without leaving this page.</p>
+                    </div>
+                    <form method="POST" action="{{ route('super-admin.events.toggle-qr', $event->id) }}">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold transition {{ $event->qr_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-600 text-white hover:bg-green-700' }}">
+                            {{ $event->qr_active ? 'Deactivate QR' : 'Activate QR' }}
+                        </button>
+                    </form>
+                </div>
+
                 <form method="POST" action="{{ route('super-admin.events.update', $event) }}" enctype="multipart/form-data" class="bg-white rounded-lg shadow p-8 max-w-4xl">
                     @csrf
                     @method('PUT')

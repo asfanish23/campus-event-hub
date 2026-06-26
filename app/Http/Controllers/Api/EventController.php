@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use App\Models\EventLike;
+use App\Models\StudentEventRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class EventController extends Controller
 {
@@ -23,7 +25,7 @@ class EventController extends Controller
         try {
             return $event->likes()->count();
         } catch (\Throwable $e) {
-            \Log::warning('Unable to count event likes', [
+            Log::warning('Unable to count event likes', [
                 'event_id' => $event->id,
                 'event_name' => $event->name ?? null,
                 'error_message' => $e->getMessage(),
@@ -42,7 +44,7 @@ class EventController extends Controller
         try {
             return $user->likedEvents()->where('event_id', $event->id)->exists();
         } catch (\Throwable $e) {
-            \Log::warning('Unable to resolve event like state', [
+            Log::warning('Unable to resolve event like state', [
                 'event_id' => $event->id,
                 'user_id' => $user->id,
                 'error_message' => $e->getMessage(),
@@ -65,7 +67,9 @@ class EventController extends Controller
         // Use computed status instead of database status for accurate filtering
         $eventData['status'] = $event->getComputedStatus();
         $eventData['is_liked'] = $this->safeIsLiked($event, $user);
-        $eventData['is_joined'] = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
+        $eventData['is_joined'] = $user
+            ? StudentEventRegistration::where('user_id', $user->id)->where('event_id', $event->id)->exists()
+            : false;
         $eventData['likes'] = $this->safeLikesCount($event);
         $eventData['joined_count'] = $event->registrations()->count();
 
@@ -103,7 +107,7 @@ class EventController extends Controller
                 try {
                     return $this->formatEventData($event, $user);
                 } catch (\Throwable $e) {
-                    \Log::warning('Skipping malformed event row in API response', [
+                    Log::warning('Skipping malformed event row in API response', [
                         'event_id' => $event->id ?? null,
                         'event_name' => $event->name ?? null,
                         'error_message' => $e->getMessage(),
@@ -139,7 +143,9 @@ class EventController extends Controller
             $eventData['event_date'] = $event->date?->toDateString();
             $eventData['status'] = $event->getComputedStatus();
             $eventData['is_liked'] = $this->safeIsLiked($event, $user);
-            $eventData['is_joined'] = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
+            $eventData['is_joined'] = $user
+                ? StudentEventRegistration::where('user_id', $user->id)->where('event_id', $event->id)->exists()
+                : false;
             $eventData['likes'] = $this->safeLikesCount($event);
             $eventData['joined_count'] = $event->registrations()->count();
 
@@ -185,7 +191,7 @@ class EventController extends Controller
     public function join(Request $request, $eventId)
     {
         try {
-            \Log::info('Join event request', [
+            Log::info('Join event request', [
                 'raw_event_id' => $eventId,
                 'event_id_type' => gettype($eventId),
                 'route_params' => $request->route()->parameters(),
@@ -195,7 +201,7 @@ class EventController extends Controller
             // Sanitize and validate event ID
             $eventId = (int) $eventId;
             if ($eventId <= 0) {
-                \Log::warning('Invalid event ID', [
+                Log::warning('Invalid event ID', [
                     'event_id' => $eventId,
                     'original' => $request->route('eventId')
                 ]);
@@ -209,7 +215,7 @@ class EventController extends Controller
             $user = Auth::guard('sanctum')->user();
             
             if (!$user) {
-                \Log::warning('Join event failed: User not authenticated', [
+                Log::warning('Join event failed: User not authenticated', [
                     'event_id' => $eventId
                 ]);
                 return response()->json([
@@ -220,7 +226,7 @@ class EventController extends Controller
             }
 
             // Manually query for event with detailed logging
-            \Log::debug('Querying event table', [
+            Log::debug('Querying event table', [
                 'event_id' => $eventId,
                 'user_id' => $user->id
             ]);
@@ -232,7 +238,7 @@ class EventController extends Controller
                 $totalEvents = Event::count();
                 $eventIds = Event::pluck('id')->toArray();
                 
-                \Log::warning('Event not found in database', [
+                Log::warning('Event not found in database', [
                     'searched_id' => $eventId,
                     'user_id' => $user->id,
                     'total_events_in_db' => $totalEvents,
@@ -252,19 +258,19 @@ class EventController extends Controller
                 ], 404);
             }
 
-            \Log::info('Event found', [
+            Log::info('Event found', [
                 'event_id' => $event->id,
                 'event_name' => $event->name,
                 'user_id' => $user->id
             ]);
 
             // Check if user is already registered
-            $existing = $user->registrations()
+            $existing = StudentEventRegistration::where('user_id', $user->id)
                 ->where('event_id', $event->id)
                 ->first();
 
             if ($existing) {
-                \Log::info('User already joined event', [
+                Log::info('User already joined event', [
                     'event_id' => $event->id,
                     'user_id' => $user->id,
                     'registered_at' => $existing->registered_at
@@ -290,17 +296,18 @@ class EventController extends Controller
             }
 
             // Create registration
-            \Log::info('Creating event registration', [
+            Log::info('Creating event registration', [
                 'event_id' => $event->id,
                 'user_id' => $user->id
             ]);
             
-            $registration = $user->registrations()->create([
+            $registration = StudentEventRegistration::create([
+                'user_id' => $user->id,
                 'event_id' => $event->id,
                 'registered_at' => now()
             ]);
 
-            \Log::info('Successfully joined event', [
+            Log::info('Successfully joined event', [
                 'event_id' => $event->id,
                 'user_id' => $user->id,
                 'registration_id' => $registration->id,
@@ -318,7 +325,7 @@ class EventController extends Controller
                 ]
             ], 201);
         } catch (\Exception $e) {
-            \Log::error('Error joining event', [
+            Log::error('Error joining event', [
                 'event_id' => $eventId ?? 'null',
                 'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
@@ -343,7 +350,7 @@ class EventController extends Controller
     public function leave(Request $request, $eventId)
     {
         try {
-            \Log::info('Leave event request', [
+            Log::info('Leave event request', [
                 'raw_event_id' => $eventId,
                 'timestamp' => now()
             ]);
@@ -351,7 +358,7 @@ class EventController extends Controller
             // Sanitize and validate event ID
             $eventId = (int) $eventId;
             if ($eventId <= 0) {
-                \Log::warning('Invalid event ID for leave', [
+                Log::warning('Invalid event ID for leave', [
                     'event_id' => $eventId
                 ]);
                 return response()->json([
@@ -364,7 +371,7 @@ class EventController extends Controller
             $user = Auth::guard('sanctum')->user();
             
             if (!$user) {
-                \Log::warning('Leave event failed: User not authenticated', [
+                Log::warning('Leave event failed: User not authenticated', [
                     'event_id' => $eventId
                 ]);
                 return response()->json([
@@ -377,7 +384,7 @@ class EventController extends Controller
             // Verify event exists
             $event = Event::find($eventId);
             if (!$event) {
-                \Log::warning('Event not found for leave', [
+                Log::warning('Event not found for leave', [
                     'searched_id' => $eventId,
                     'user_id' => $user->id
                 ]);
@@ -389,12 +396,12 @@ class EventController extends Controller
             }
 
             // Find and delete registration
-            $deleted = $user->registrations()
+            $deleted = StudentEventRegistration::where('user_id', $user->id)
                 ->where('event_id', $event->id)
                 ->delete();
 
             if (!$deleted) {
-                \Log::info('User had not joined event', [
+                Log::info('User had not joined event', [
                     'event_id' => $event->id,
                     'user_id' => $user->id
                 ]);
@@ -405,7 +412,7 @@ class EventController extends Controller
                 ], 200);
             }
 
-            \Log::info('Successfully left event', [
+            Log::info('Successfully left event', [
                 'event_id' => $event->id,
                 'user_id' => $user->id,
                 'deleted_count' => $deleted
@@ -417,7 +424,7 @@ class EventController extends Controller
                 'data' => ['joined' => false, 'event_id' => $event->id]
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error leaving event', [
+            Log::error('Error leaving event', [
                 'event_id' => $eventId ?? 'null',
                 'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
@@ -465,7 +472,9 @@ class EventController extends Controller
             
             $user = Auth::guard('sanctum')->user();
             
-            $joined = $user ? $user->registrations()->where('event_id', $event->id)->exists() : false;
+            $joined = $user
+                ? StudentEventRegistration::where('user_id', $user->id)->where('event_id', $event->id)->exists()
+                : false;
             $joinedCount = $event->registrations()->count();
 
             return response()->json([
@@ -476,7 +485,7 @@ class EventController extends Controller
                 ]
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error getting join status', [
+            Log::error('Error getting join status', [
                 'event_id' => $eventId ?? 'null',
                 'error_message' => $e->getMessage()
             ]);
@@ -556,7 +565,7 @@ class EventController extends Controller
                 ]
             ], 201);
         } catch (\Exception $e) {
-            \Log::error('Error liking event', [
+            Log::error('Error liking event', [
                 'event_id' => $eventId ?? 'null',
                 'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
@@ -618,7 +627,7 @@ class EventController extends Controller
                 ]
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error unliking event', [
+            Log::error('Error unliking event', [
                 'event_id' => $eventId ?? 'null',
                 'user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
@@ -741,7 +750,7 @@ class EventController extends Controller
                 'data' => $data
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Error fetching user liked events', [
+            Log::error('Error fetching user liked events', [
                 'user_id' => $userId ?? 'null',
                 'auth_user_id' => Auth::guard('sanctum')->user()?->id ?? 'null',
                 'error_message' => $e->getMessage(),
