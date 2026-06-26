@@ -178,7 +178,7 @@
 
                                             <div class="mt-4 flex items-center justify-between gap-3">
                                                 <button
-                                                    onclick="event.stopPropagation(); toggleLike({{ $event->id }})"
+                                                    data-like-event-id="{{ $event->id }}"
                                                     class="like-btn-{{ $event->id }} flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold transition {{ in_array($event->id, $likedEventIds) ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}"
                                                 >
                                                     <span class="like-icon-{{ $event->id }}">{{ in_array($event->id, $likedEventIds) ? '❤️' : '🤍' }}</span>
@@ -221,6 +221,17 @@
             card.addEventListener('click', () => {
                 const href = card.dataset.href;
                 if (href) window.location.href = href;
+            });
+        });
+
+        // Handle like button clicks without inline JS to avoid Blade parsing issues.
+        document.querySelectorAll('[data-like-event-id]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const eventId = Number(button.dataset.likeEventId);
+                if (Number.isFinite(eventId)) {
+                    toggleLike(eventId);
+                }
             });
         });
 

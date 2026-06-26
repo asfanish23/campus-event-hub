@@ -112,11 +112,6 @@ class StudentDashboardController extends Controller
 
     public function showEvent(Event $event)
     {
-        // Make sure event is not completed
-        if ($event->getComputedStatus() === 'completed') {
-            return redirect()->route('student.dashboard')->with('error', 'This event has been completed');
-        }
-
         $user = Auth::user();
         $isRegistered = StudentEventRegistration::where('user_id', $user->id)
             ->where('event_id', $event->id)
@@ -150,6 +145,14 @@ class StudentDashboardController extends Controller
     public function registerEvent(Event $event)
     {
         $user = Auth::user();
+
+        // Prevent registration for completed events.
+        if ($event->getComputedStatus() === 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration is closed for completed events',
+            ], 400);
+        }
 
         // Check if already registered
         $existing = StudentEventRegistration::where('user_id', $user->id)

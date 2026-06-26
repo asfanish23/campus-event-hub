@@ -7,9 +7,21 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
+    private function getSanctumUser(): ?User
+    {
+        $authUser = Auth::guard('sanctum')->user();
+
+        if (!$authUser) {
+            return null;
+        }
+
+        return User::query()->find($authUser->getAuthIdentifier());
+    }
+
     public function register(Request $request)
     {
         // Get data from JSON body
@@ -62,7 +74,13 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $user = Auth::user();
+        $user = User::query()->find(Auth::id());
+        if (!$user) {
+            return response()->json([
+                'message' => 'Authenticated user not found'
+            ], 404);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -78,7 +96,7 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         try {
-            $user = Auth::guard('sanctum')->user();
+            $user = $this->getSanctumUser();
             if (!$user) {
                 return response()->json([
                     'message' => 'Unauthorized'
@@ -126,8 +144,8 @@ class AuthController extends Controller
             // Handle profile photo upload
             if ($request->hasFile('profile_photo')) {
                 // Delete old profile photo if it exists
-                if ($user->profile_photo && \Storage::exists('public/' . $user->profile_photo)) {
-                    \Storage::delete('public/' . $user->profile_photo);
+                if ($user->profile_photo && Storage::exists('public/' . $user->profile_photo)) {
+                    Storage::delete('public/' . $user->profile_photo);
                 }
 
                 // Store new profile photo
@@ -159,7 +177,7 @@ class AuthController extends Controller
     public function getUserRegistrations(Request $request)
     {
         try {
-            $user = Auth::guard('sanctum')->user();
+            $user = $this->getSanctumUser();
             if (!$user) {
                 return response()->json([
                     'message' => 'Unauthorized'
@@ -193,7 +211,7 @@ class AuthController extends Controller
     public function getUserOrders(Request $request)
     {
         try {
-            $user = Auth::guard('sanctum')->user();
+            $user = $this->getSanctumUser();
             if (!$user) {
                 return response()->json([
                     'message' => 'Unauthorized'
