@@ -92,9 +92,20 @@
             <div class="p-8">
                 <a href="{{ route('super-admin.manage-events') }}" class="text-purple-600 hover:text-purple-800 mb-6 inline-block">← Back to Events</a>
 
-                <form method="POST" action="{{ route('super-admin.events.update', $event) }}" class="bg-white rounded-lg shadow p-8 max-w-4xl">
+                <form method="POST" action="{{ route('super-admin.events.update', $event) }}" enctype="multipart/form-data" class="bg-white rounded-lg shadow p-8 max-w-4xl">
                     @csrf
                     @method('PUT')
+
+                    @if ($errors->any())
+                    <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                        <p class="font-semibold text-red-700 mb-2">Please fix the following before saving:</p>
+                        <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                            @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
 
                     <div class="grid grid-cols-2 gap-6 mb-6">
                         <div>
@@ -200,6 +211,8 @@
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Upload Additional Photos</label>
                         <input type="file" name="event_photos[]" accept="image/*" multiple id="eventPhotosInput" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">
+                        @error('event_photos') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+                        @error('event_photos.*') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
                         <p class="text-xs text-gray-500 mt-2">Accepted formats: JPEG, PNG, JPG, GIF (Max 5MB per file)</p>
                         
                         <div id="photosPreview" class="mt-6 grid grid-cols-3 gap-4"></div>

@@ -280,6 +280,15 @@ class EventController extends Controller
                 ], 200);
             }
 
+            // Prevent new joins for events that have already completed.
+            if ($event->getComputedStatus() === 'completed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This event has ended. Registration is closed.',
+                    'error_code' => 'EVENT_COMPLETED'
+                ], 422);
+            }
+
             // Create registration
             \Log::info('Creating event registration', [
                 'event_id' => $event->id,
