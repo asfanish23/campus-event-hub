@@ -29,10 +29,15 @@ class AuthController extends Controller
         
         // Validate the data
         $validated = \Illuminate\Support\Facades\Validator::make($data, [
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'student_id' => 'sometimes|string|nullable'
+            'name'       => 'required|string',
+            'email'      => 'required|email|unique:users',
+            'password'   => 'required|min:6',
+            'student_id' => 'sometimes|string|nullable',
+            'phone'      => 'sometimes|string|nullable',
+            'address'    => 'sometimes|string|nullable',
+            'state'      => 'sometimes|string|nullable',
+            'city'       => 'sometimes|string|nullable',
+            'postal_code'=> 'sometimes|string|nullable',
         ])->validate();
 
         // Use provided student_id or generate one
@@ -41,19 +46,24 @@ class AuthController extends Controller
             : 'STU' . strtoupper(substr(md5(time() . $validated['email']), 0, 8));
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'student',  // Mobile API registrations are always students
-            'student_id' => $studentId,
+            'name'        => $validated['name'],
+            'email'       => $validated['email'],
+            'password'    => Hash::make($validated['password']),
+            'role'        => 'student',  // Mobile API registrations are always students
+            'student_id'  => $studentId,
+            'phone'       => $validated['phone'] ?? null,
+            'address'     => $validated['address'] ?? null,
+            'state'       => $validated['state'] ?? null,
+            'city'        => $validated['city'] ?? null,
+            'postal_code' => $validated['postal_code'] ?? null,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => $user,
-            'token' => $token
+            'user'    => $user,
+            'token'   => $token
         ], 201);
     }
 
