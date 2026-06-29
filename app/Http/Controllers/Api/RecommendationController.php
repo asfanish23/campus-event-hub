@@ -29,15 +29,25 @@ class RecommendationController extends Controller
     public function getRecommendations(Request $request): JsonResponse
     {
         $limit = $request->query('limit', 10);
-        $user = Auth::user();
+        $user = Auth::guard('sanctum')->user();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+                'count' => 0,
+                'data' => [],
+            ], 401);
+        }
 
         $recommendations = $this->cbfService->getRecommendations($user, $limit);
+        $likedEventIds = EventLike::where('user_id', $user->id)->pluck('event_id')->all();
 
         return response()->json([
             'success' => true,
             'message' => 'Recommendations generated successfully',
             'count' => $recommendations->count(),
-            'data' => $recommendations->map(function (Event $event) {
+            'data' => $recommendations->map(function (Event $event) use ($likedEventIds) {
                 return [
                     'id' => $event->id,
                     'name' => $event->name,
@@ -49,7 +59,7 @@ class RecommendationController extends Controller
                     'club_id' => $event->club_id,
                     'event_image' => $event->event_image,
                     'likes_count' => $event->likes()->count(),
-                    'is_liked' => $user->likedEvents()->where('event_id', $event->id)->exists(),
+                    'is_liked' => in_array($event->id, $likedEventIds, true),
                 ];
             }),
         ]);
@@ -65,7 +75,18 @@ class RecommendationController extends Controller
     public function getSimilarEvents(Event $event, Request $request): JsonResponse
     {
         $limit = $request->query('limit', 5);
-        $user = Auth::user();
+        $user = Auth::guard('sanctum')->user();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+                'count' => 0,
+                'data' => [],
+            ], 401);
+        }
+
+        $likedEventIds = EventLike::where('user_id', $user->id)->pluck('event_id')->all();
 
         $similarEvents = $this->cbfService->getSimilarEvents($event, $limit);
 
@@ -73,7 +94,7 @@ class RecommendationController extends Controller
             'success' => true,
             'message' => 'Similar events retrieved successfully',
             'count' => $similarEvents->count(),
-            'data' => $similarEvents->map(function (Event $similarEvent) use ($user) {
+            'data' => $similarEvents->map(function (Event $similarEvent) use ($likedEventIds) {
                 return [
                     'id' => $similarEvent->id,
                     'name' => $similarEvent->name,
@@ -85,7 +106,7 @@ class RecommendationController extends Controller
                     'club_id' => $similarEvent->club_id,
                     'event_image' => $similarEvent->event_image,
                     'likes_count' => $similarEvent->likes()->count(),
-                    'is_liked' => $user->likedEvents()->where('event_id', $similarEvent->id)->exists(),
+                    'is_liked' => in_array($similarEvent->id, $likedEventIds, true),
                 ];
             }),
         ]);
@@ -167,8 +188,19 @@ class RecommendationController extends Controller
      */
     public function getUserLikes(): JsonResponse
     {
-        $user = Auth::user();
-        $likedEvents = $user->likedEvents()->get();
+        $user = Auth::guard('sanctum')->user();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+                'count' => 0,
+                'data' => [],
+            ], 401);
+        }
+
+        $likedEventIds = EventLike::where('user_id', $user->id)->pluck('event_id');
+        $likedEvents = Event::with('club')->whereIn('id', $likedEventIds)->get();
 
         return response()->json([
             'success' => true,
@@ -194,8 +226,10 @@ class RecommendationController extends Controller
      */
     public function getEventLikeStatus(Event $event): JsonResponse
     {
-        $user = Auth::user();
-        $isLiked = $user->likedEvents()->where('event_id', $event->id)->exists();
+        $user = Auth::guard('sanctum')->user();
+        $isLiked = $user
+            ? EventLike::where('user_id', $user->id)->where('event_id', $event->id)->exists()
+            : false;
 
         return response()->json([
             'success' => true,
