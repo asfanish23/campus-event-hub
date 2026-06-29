@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Club;
 use App\Models\StudentEventRegistration;
 use App\Models\EventLike;
+use App\Models\Review;
 use App\Services\ContentBasedFilteringService;
 use App\Services\ResendEmailService;
 use Illuminate\Support\Facades\Auth;
@@ -132,6 +133,13 @@ class StudentDashboardController extends Controller
         $cbfService = new ContentBasedFilteringService();
         $similarEvents = $cbfService->getSimilarEvents($event, 5);
 
+        $reviews = $event->reviews()
+            ->with('user:id,name')
+            ->latest('id')
+            ->get();
+
+        $reviewEligibility = Review::buildEligibility($user, $event);
+
         return view('student.event-details', [
             'event' => $event,
             'isRegistered' => $isRegistered,
@@ -139,7 +147,42 @@ class StudentDashboardController extends Controller
             'likeCount' => $likeCount,
             'similarEvents' => $similarEvents,
             'likedEventIds' => $likedEventIds,
+            'reviews' => $reviews,
+            'reviewEligibility' => $reviewEligibility,
         ]);
+    }
+
+    public function submitReview(Request $request, Event $event)
+    {
+        $user = Auth::user();
+        if (! $user || $user->role !== 'student') {
+            return redirect()->route('student.event.show', $event)
+                ->with('error', 'Only students can submit reviews.');
+        }
+
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'required|string|min:3|max:2000',
+        ]);
+
+        $eligibility = Review::buildEligibility($user, $event);
+        if (! $eligibility['can_submit_review']) {
+            return redirect()->route('student.event.show', $event)
+                ->with('error', 'You are not eligible to review this event yet.');
+        }
+
+        Review::create([
+            'event_id' => $event->id,
+            'user_id' => $user->id,
+            'reviewer_name' => $user->name,
+            'rating' => $validated['rating'],
+            'comment' => $validated['comment'],
+            'review_text' => $validated['comment'],
+            'is_reported' => false,
+        ]);
+
+        return redirect()->route('student.event.show', $event)
+            ->with('success', 'Review submitted successfully.');
     }
 
     public function registerEvent(Event $event)

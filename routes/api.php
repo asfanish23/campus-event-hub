@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\TelegramController;
 use App\Http\Controllers\Api\ClubFollowController;
 use App\Http\Controllers\Api\ClubNotificationController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Models\Event;
 
 // Health check endpoint (no auth required)
@@ -102,6 +103,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Event Registration/Join
         Route::post('/{event}/join', [EventController::class, 'join']);
         Route::post('/{event}/leave', [EventController::class, 'leave']);
+
+        // Review & Rating
+        Route::get('/{event}/reviews', [ReviewController::class, 'index']);
+        Route::get('/{event}/reviews/eligibility', [ReviewController::class, 'eligibility']);
+        Route::post('/{event}/reviews', [ReviewController::class, 'store']);
     });
 
     Route::post('/clubs/{club}/follow', [ClubFollowController::class, 'follow']);

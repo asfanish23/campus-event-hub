@@ -95,6 +95,16 @@
             <div class="p-8">
                 <p class="text-gray-600 mb-6">View and report inappropriate reviews</p>
 
+                @if(session('success'))
+                    <div class="mb-4 rounded-lg bg-green-100 text-green-800 px-4 py-3">{{ session('success') }}</div>
+                @endif
+                @if(session('error'))
+                    <div class="mb-4 rounded-lg bg-red-100 text-red-800 px-4 py-3">{{ session('error') }}</div>
+                @endif
+                @if(session('info'))
+                    <div class="mb-4 rounded-lg bg-blue-100 text-blue-800 px-4 py-3">{{ session('info') }}</div>
+                @endif
+
                 <!-- Filter Section -->
                 <div class="mb-6 bg-white rounded-lg shadow p-6">
                     <form method="GET" action="{{ route('event.reviews', $event) }}" class="flex gap-4 items-end">
@@ -128,7 +138,7 @@
                         <div class="bg-white rounded-lg shadow p-6 mb-6">
                             <div class="flex justify-between items-start mb-3">
                                 <div>
-                                    <h4 class="text-lg font-bold text-gray-800">{{ $review->reviewer_name }}</h4>
+                                    <h4 class="text-lg font-bold text-gray-800">{{ $review->user->name ?? $review->reviewer_name }}</h4>
                                     <div class="flex items-center gap-2 mt-1">
                                         <div class="flex items-center">
                                             @for($i = 0; $i < $review->rating; $i++)
@@ -141,19 +151,21 @@
                                         <span class="text-sm text-gray-500">{{ $review->rating }}/5</span>
                                     </div>
                                 </div>
-                                <button class="text-gray-400 hover:text-red-600 transition">🚩</button>
+                                @if($review->is_reported)
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Reported</span>
+                                @else
+                                    <form method="POST" action="{{ route('event.reviews.report', ['event' => $event, 'review' => $review]) }}">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-red-100 hover:text-red-700 transition">🚩 Report</button>
+                                    </form>
+                                @endif
                             </div>
 
                             <p class="text-sm text-gray-600 mb-3">
                                 {{ $event->name }} • {{ $event->date->format('Y-m-d') }}
                             </p>
 
-                            <p class="text-gray-700 leading-relaxed">{{ $review->review_text }}</p>
-
-                            <div class="mt-4 flex gap-4">
-                                <button class="text-sm font-semibold text-gray-600 hover:text-gray-800">👍 Helpful</button>
-                                <button class="text-sm font-semibold text-gray-600 hover:text-gray-800">👎 Not Helpful</button>
-                            </div>
+                            <p class="text-gray-700 leading-relaxed">{{ $review->comment ?? $review->review_text }}</p>
                         </div>
                     @empty
                         <div class="bg-white rounded-lg shadow p-8 text-center">

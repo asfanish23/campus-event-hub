@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/student/event/{event}/cancel-registration', [StudentDashboardController::class, 'cancelRegistration'])->name('student.event.cancel')->middleware('student');
     Route::post('/student/event/{event}/like', [StudentDashboardController::class, 'likeEvent'])->name('student.event.like')->middleware('student');
     Route::post('/student/event/{event}/unlike', [StudentDashboardController::class, 'unlikeEvent'])->name('student.event.unlike')->middleware('student');
+    Route::post('/student/event/{event}/review', [StudentDashboardController::class, 'submitReview'])->name('student.event.review')->middleware('student');
     
     // Student Profile routes
     Route::prefix('student/profile')->middleware('student')->group(function () {
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('event', EventController::class);
     Route::get('event/{event}/attendance', [EventController::class, 'attendance'])->name('event.attendance');
     Route::get('event/{event}/reviews', [EventController::class, 'reviews'])->name('event.reviews');
+    Route::post('event/{event}/reviews/{review}/report', [EventController::class, 'reportReview'])->name('event.reviews.report');
 
     Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     Route::put('attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update');
@@ -144,6 +146,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/users/{user}/update-role', [SuperAdminController::class, 'updateUserRole'])->name('update-user-role');
         Route::delete('/users/{user}', [SuperAdminController::class, 'deleteUser'])->name('delete-user');
         Route::get('/manage-reviews', [SuperAdminController::class, 'manageReviews'])->name('manage-reviews');
+        Route::post('/manage-reviews/{review}/ignore', [SuperAdminController::class, 'ignoreReviewReport'])->name('manage-reviews.ignore');
+        Route::delete('/manage-reviews/{review}', [SuperAdminController::class, 'deleteReview'])->name('manage-reviews.delete');
         Route::get('/system-settings', [SuperAdminController::class, 'systemSettings'])->name('system-settings');
     });
 

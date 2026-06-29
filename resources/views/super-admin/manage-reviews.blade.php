@@ -90,14 +90,14 @@
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <h3 class="admin-shell-title">Review Filters</h3>
-                            <p class="admin-shell-subtitle">Search reviews by event, reviewer, or comment</p>
+                            <p class="admin-shell-subtitle">Review and resolve reports submitted by club admins</p>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full md:max-w-2xl">
                             <input
                                 type="text"
                                 id="reviewSearchInput"
-                                placeholder="Search reviews..."
+                                placeholder="Search reported reviews..."
                                 class="admin-input"
                             >
 
@@ -115,47 +115,67 @@
 
                 <div class="admin-table-wrap">
                     <div class="admin-table-header">
-                        <h3 class="admin-table-title">All Reviews</h3>
-                        <p class="admin-table-subtitle">Manage all reviews on the platform</p>
+                        <h3 class="admin-table-title">Reported Reviews</h3>
+                        <p class="admin-table-subtitle">Ignore reports or permanently delete inappropriate reviews</p>
                     </div>
+
+                    @if(session('success'))
+                        <div class="mb-4 rounded-lg bg-green-100 text-green-800 px-4 py-3">{{ session('success') }}</div>
+                    @endif
+                    @if(session('info'))
+                        <div class="mb-4 rounded-lg bg-blue-100 text-blue-800 px-4 py-3">{{ session('info') }}</div>
+                    @endif
 
                     <div class="overflow-x-auto">
                         <table class="admin-table">
                             <thead>
                                 <tr>
                                     <th>Event</th>
+                                    <th>Club</th>
                                     <th>Reviewer</th>
                                     <th>Rating</th>
                                     <th>Comment</th>
-                                    <th>Date</th>
+                                    <th>Report Status</th>
+                                    <th>Report Date</th>
                                     <th class="is-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="reviewsTableBody">
                                 @forelse($reviews as $review)
                                 <tr
-                                    data-review-event="{{ strtolower($review->event->event_name ?? 'n/a') }}"
-                                    data-reviewer="{{ strtolower($review->user->name ?? 'n/a') }}"
-                                    data-review-comment="{{ strtolower($review->comment ?? '') }}"
+                                    data-review-event="{{ strtolower($review->event->name ?? 'n/a') }}"
+                                    data-reviewer="{{ strtolower($review->user->name ?? $review->reviewer_name ?? 'n/a') }}"
+                                    data-review-comment="{{ strtolower($review->comment ?? $review->review_text ?? '') }}"
                                     data-review-rating="{{ $review->rating }}"
                                 >
-                                    <td class="font-semibold text-gray-800 whitespace-nowrap">{{ $review->event->event_name ?? 'N/A' }}</td>
-                                    <td class="text-gray-600 whitespace-nowrap">{{ $review->user->name ?? 'N/A' }}</td>
+                                    <td class="font-semibold text-gray-800 whitespace-nowrap">{{ $review->event->name ?? 'N/A' }}</td>
+                                    <td class="text-gray-600 whitespace-nowrap">{{ $review->event->club->name ?? 'N/A' }}</td>
+                                    <td class="text-gray-600 whitespace-nowrap">{{ $review->user->name ?? $review->reviewer_name ?? 'N/A' }}</td>
                                     <td>
                                         <span class="text-yellow-500">{{ str_repeat('⭐', $review->rating) }}</span>
                                     </td>
-                                    <td class="text-gray-600">{{ Str::limit($review->comment, 50) }}</td>
-                                    <td class="text-gray-600 whitespace-nowrap">{{ $review->created_at->format('M d, Y') }}</td>
+                                    <td class="text-gray-600">{{ Str::limit($review->comment ?? $review->review_text, 80) }}</td>
+                                    <td>
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Reported</span>
+                                    </td>
+                                    <td class="text-gray-600 whitespace-nowrap">{{ optional($review->reported_at)->format('M d, Y H:i') ?? 'N/A' }}</td>
                                     <td class="is-center">
                                         <div class="admin-actions">
-                                            <button type="button" class="admin-action-btn admin-action-btn--view">View</button>
-                                            <button type="button" class="admin-action-btn admin-action-btn--delete" aria-disabled="true">Delete</button>
+                                            <form method="POST" action="{{ route('super-admin.manage-reviews.ignore', $review) }}">
+                                                @csrf
+                                                <button type="submit" class="admin-action-btn admin-action-btn--view">Ignore</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('super-admin.manage-reviews.delete', $review) }}" onsubmit="return confirm('Delete this review permanently?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="admin-action-btn admin-action-btn--delete">Delete</button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">No reviews found</td>
+                                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">No reported reviews found</td>
                                 </tr>
                                 @endforelse
                             </tbody>

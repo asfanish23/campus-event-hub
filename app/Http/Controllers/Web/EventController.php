@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventMedia;
 use App\Models\Club;
+use App\Models\Review;
 use App\Services\ClubInstagramService;
 use App\Services\ClubActivityService;
 use App\Services\InstagramNotificationService;
@@ -123,7 +124,7 @@ class EventController extends Controller
                 $imagePath = $request->file('event_image')->store('event-images', 'public');
                 $validated['event_image'] = $imagePath;
             } catch (\Exception $e) {
-                \Log::error('Event image upload error: ' . $e->getMessage());
+                Log::error('Event image upload error: ' . $e->getMessage());
                 return back()->withErrors(['event_image' => 'Failed to upload image: ' . $e->getMessage()]);
             }
         }
@@ -353,6 +354,10 @@ class EventController extends Controller
      */
     public function reviews(Event $event)
     {
+        if (auth()->user()->role !== 'super_admin' && (int) auth()->user()->club_id !== (int) $event->club_id) {
+            abort(403, 'Unauthorized access to event reviews.');
+        }
+
         $query = $event->reviews();
 
         // Filter by rating
@@ -362,11 +367,48 @@ class EventController extends Controller
 
         // Search by reviewer name
         if (request('search')) {
-            $query->where('reviewer_name', 'like', '%' . request('search') . '%');
+            $search = request('search');
+            $query->where(function ($builder) use ($search) {
+                $builder->where('reviewer_name', 'like', '%' . $search . '%')
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', '%' . $search . '%');
+                    });
+            });
         }
 
-        $reviews = $query->get();
+        $reviews = $query->with('user')->latest('id')->get();
         return view('event.reviews', compact('event', 'reviews'));
+    }
+
+    public function reportReview(Request $request, Event $event, Review $review)
+    {
+        $user = auth()->user();
+        if (! $user || $user->role !== 'admin') {
+            return redirect()->route('event.reviews', $event)
+                ->with('error', 'Only club admins can report reviews.');
+        }
+
+        if ((int) $event->club_id !== (int) $user->club_id) {
+            abort(403, 'You can only report reviews for your own club events.');
+        }
+
+        if ((int) $review->event_id !== (int) $event->id) {
+            abort(404, 'Review not found for this event.');
+        }
+
+        if ($review->is_reported) {
+            return redirect()->route('event.reviews', $event)
+                ->with('info', 'This review has already been reported.');
+        }
+
+        $review->update([
+            'is_reported' => true,
+            'reported_by_admin_id' => $user->id,
+            'reported_at' => now(),
+        ]);
+
+        return redirect()->route('event.reviews', $event)
+            ->with('success', 'Review reported successfully.');
     }
 
     /**
@@ -387,4 +429,5 @@ class EventController extends Controller
         $eventMedia->delete();
         $this->clubActivityService->recordUserActivity(Auth::user());
         return response()->json(['success' => true]);
-    }}
+    }
+}

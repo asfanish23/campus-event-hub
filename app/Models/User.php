@@ -120,4 +120,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(ClubNotification::class);
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function reportedReviews()
+    {
+        return $this->hasMany(Review::class, 'reported_by_admin_id');
+    }
 }

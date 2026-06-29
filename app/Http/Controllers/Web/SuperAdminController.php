@@ -293,8 +293,38 @@ class SuperAdminController extends Controller
 
     public function manageReviews()
     {
-        $reviews = Review::with('event', 'user')->paginate(10);
+        $reviews = Review::with(['event.club', 'user', 'reportedByAdmin'])
+            ->where('is_reported', true)
+            ->latest('reported_at')
+            ->latest('id')
+            ->paginate(10);
+
         return view('super-admin.manage-reviews', ['reviews' => $reviews]);
+    }
+
+    public function ignoreReviewReport(Review $review)
+    {
+        if (! $review->is_reported) {
+            return redirect()->route('super-admin.manage-reviews')
+                ->with('info', 'Review is not currently reported.');
+        }
+
+        $review->update([
+            'is_reported' => false,
+            'reported_by_admin_id' => null,
+            'reported_at' => null,
+        ]);
+
+        return redirect()->route('super-admin.manage-reviews')
+            ->with('success', 'Reported status removed successfully.');
+    }
+
+    public function deleteReview(Review $review)
+    {
+        $review->delete();
+
+        return redirect()->route('super-admin.manage-reviews')
+            ->with('success', 'Review deleted successfully.');
     }
 
     public function systemSettings()

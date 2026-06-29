@@ -72,6 +72,8 @@ class EventController extends Controller
             : false;
         $eventData['likes'] = $this->safeLikesCount($event);
         $eventData['joined_count'] = $event->registrations()->count();
+        $eventData['average_rating'] = round((float) $event->reviews()->avg('rating'), 1);
+        $eventData['reviews_count'] = $event->reviews()->count();
 
         return $eventData;
     }
@@ -148,6 +150,8 @@ class EventController extends Controller
                 : false;
             $eventData['likes'] = $this->safeLikesCount($event);
             $eventData['joined_count'] = $event->registrations()->count();
+            $eventData['average_rating'] = round((float) $event->reviews()->avg('rating'), 1);
+            $eventData['reviews_count'] = $event->reviews()->count();
 
             return response()->json([
                 'data' => $eventData
