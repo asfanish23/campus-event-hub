@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'student_id',
+        'faculty',
         'phone',
         'bio',
         'profile_photo',

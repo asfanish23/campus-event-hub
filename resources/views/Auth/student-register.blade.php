@@ -68,6 +68,23 @@
                 @enderror
             </div>
 
+            {{-- Faculty --}}
+            <div>
+                <label class="text-sm font-semibold">Faculty</label>
+                <select name="faculty" class="w-full mt-1 p-3 border rounded-xl @error('faculty') border-red-500 @enderror" required>
+                    <option value="">Select your faculty</option>
+                    <option value="Fakulti Perladangan dan Agroteknologi (FPA)" {{ old('faculty') === 'Fakulti Perladangan dan Agroteknologi (FPA)' ? 'selected' : '' }}>
+                        Fakulti Perladangan dan Agroteknologi (FPA)
+                    </option>
+                    <option value="Fakulti Sains Komputer dan Matematik (FSKM)" {{ old('faculty') === 'Fakulti Sains Komputer dan Matematik (FSKM)' ? 'selected' : '' }}>
+                        Fakulti Sains Komputer dan Matematik (FSKM)
+                    </option>
+                </select>
+                @error('faculty')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
             {{-- Address Line 1 --}}
             <div>
                 <label class="text-sm font-semibold">Address Line 1</label>

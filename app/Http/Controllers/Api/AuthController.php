@@ -33,6 +33,7 @@ class AuthController extends Controller
             'email'      => 'required|email|unique:users',
             'password'   => 'required|min:6',
             'student_id' => 'sometimes|string|nullable',
+            'faculty'    => 'required|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
             'phone'      => 'sometimes|string|nullable',
             'address'    => 'sometimes|string|nullable',
             'state'      => 'sometimes|string|nullable',
@@ -51,6 +52,7 @@ class AuthController extends Controller
             'password'    => Hash::make($validated['password']),
             'role'        => 'student',  // Mobile API registrations are always students
             'student_id'  => $studentId,
+            'faculty'     => $validated['faculty'] ?? null,
             'phone'       => $validated['phone'] ?? null,
             'address'     => $validated['address'] ?? null,
             'state'       => $validated['state'] ?? null,
@@ -121,6 +123,7 @@ class AuthController extends Controller
                     'email' => 'sometimes|email|unique:users,email,' . $user->id,
                     'phone' => 'sometimes|string|nullable',
                     'student_id' => 'sometimes|string|nullable',
+                    'faculty' => 'sometimes|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
                     'address' => 'sometimes|string|nullable',
                     'city' => 'sometimes|string|nullable',
                     'postal_code' => 'sometimes|string|nullable',
@@ -140,6 +143,9 @@ class AuthController extends Controller
             }
             if (isset($validated['student_id'])) {
                 $user->student_id = $validated['student_id'];
+            }
+            if (isset($validated['faculty'])) {
+                $user->faculty = $validated['faculty'];
             }
             if (isset($validated['address'])) {
                 $user->address = $validated['address'];

@@ -21,6 +21,7 @@ class StudentRegistrationController extends Controller
             'email' => 'required|email|unique:users,email',
             'phone' => 'required|string|max:20',
             'student_id' => 'required|string|unique:users,student_id',
+            'faculty' => 'required|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
             'address_line_1' => 'required|string|max:255',
             'address_line_2' => 'nullable|string|max:255',
             'state' => 'required|string|max:100',
@@ -39,6 +40,7 @@ class StudentRegistrationController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'student_id' => $request->student_id,
+            'faculty' => $request->faculty,
             'address' => $address,
             'state' => $request->state,
             'city' => $request->city,
@@ -46,7 +48,6 @@ class StudentRegistrationController extends Controller
             'postal_code' => $request->postal_code,
             'password' => Hash::make($request->password),
             'role' => 'student',
-            'student_id' => $request->student_id,
         ]);
 
         return redirect()->route('login')->with('success', 'Registration successful! Please login with your credentials.');
