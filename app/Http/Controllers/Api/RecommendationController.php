@@ -41,27 +41,12 @@ class RecommendationController extends Controller
         }
 
         $recommendations = $this->cbfService->getRecommendations($user, $limit);
-        $likedEventIds = EventLike::where('user_id', $user->id)->pluck('event_id')->all();
 
         return response()->json([
             'success' => true,
             'message' => 'Recommendations generated successfully',
             'count' => $recommendations->count(),
-            'data' => $recommendations->map(function (Event $event) use ($likedEventIds) {
-                return [
-                    'id' => $event->id,
-                    'name' => $event->name,
-                    'description' => $event->description,
-                    'category' => $event->category,
-                    'date' => $event->date,
-                    'location' => $event->location,
-                    'club' => $event->club?->name,
-                    'club_id' => $event->club_id,
-                    'event_image' => $event->event_image,
-                    'likes_count' => $event->likes()->count(),
-                    'is_liked' => in_array($event->id, $likedEventIds, true),
-                ];
-            }),
+            'data' => $recommendations->map(fn (Event $event) => $this->formatEvent($event, $user->id)),
         ]);
     }
 
@@ -86,29 +71,13 @@ class RecommendationController extends Controller
             ], 401);
         }
 
-        $likedEventIds = EventLike::where('user_id', $user->id)->pluck('event_id')->all();
-
         $similarEvents = $this->cbfService->getSimilarEvents($event, $limit);
 
         return response()->json([
             'success' => true,
             'message' => 'Similar events retrieved successfully',
             'count' => $similarEvents->count(),
-            'data' => $similarEvents->map(function (Event $similarEvent) use ($likedEventIds) {
-                return [
-                    'id' => $similarEvent->id,
-                    'name' => $similarEvent->name,
-                    'description' => $similarEvent->description,
-                    'category' => $similarEvent->category,
-                    'date' => $similarEvent->date,
-                    'location' => $similarEvent->location,
-                    'club' => $similarEvent->club?->name,
-                    'club_id' => $similarEvent->club_id,
-                    'event_image' => $similarEvent->event_image,
-                    'likes_count' => $similarEvent->likes()->count(),
-                    'is_liked' => in_array($similarEvent->id, $likedEventIds, true),
-                ];
-            }),
+            'data' => $similarEvents->map(fn (Event $similarEvent) => $this->formatEvent($similarEvent, $user->id)),
         ]);
     }
 
@@ -120,7 +89,14 @@ class RecommendationController extends Controller
      */
     public function likeEvent(Event $event): JsonResponse
     {
-        $user = Auth::user();
+        $user = Auth::guard('sanctum')->user();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 401);
+        }
 
         // Check if already liked
         $existingLike = EventLike::where('user_id', $user->id)
@@ -158,7 +134,14 @@ class RecommendationController extends Controller
      */
     public function unlikeEvent(Event $event): JsonResponse
     {
-        $user = Auth::user();
+        $user = Auth::guard('sanctum')->user();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 401);
+        }
 
         $deleted = EventLike::where('user_id', $user->id)
             ->where('event_id', $event->id)
@@ -238,6 +221,16 @@ class RecommendationController extends Controller
                 'likes_count' => $event->likes()->count(),
                 'is_liked_by_user' => $isLiked,
             ],
+        ]);
+    }
+
+    private function formatEvent(Event $event, int $userId): array
+    {
+        return array_merge($event->toArray(), [
+            'event_date' => $event->date?->toDateString(),
+            'status' => $event->getComputedStatus(),
+            'likes' => $event->likes()->count(),
+            'is_liked' => EventLike::where('user_id', $userId)->where('event_id', $event->id)->exists(),
         ]);
     }
 }
