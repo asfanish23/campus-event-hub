@@ -53,6 +53,9 @@ Route::get('/health', function () {
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/google', [AuthController::class, 'googleLogin']);
+Route::post('/auth/google/register', [AuthController::class, 'googleRegister']);
+Route::get('/faculties', [AuthController::class, 'getFaculties']);
 
 // Public Event Endpoints (no auth required)
 Route::prefix('events')->group(function () {

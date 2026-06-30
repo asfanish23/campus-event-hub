@@ -12,6 +12,11 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    public const FACULTIES = [
+        'FPA' => 'Fakulti Perladangan dan Agroteknologi (FPA)',
+        'FSKM' => 'Fakulti Sains Komputer dan Matematik (FSKM)',
+    ];
+
     /**
      * The attributes that are mass assignable.
      *

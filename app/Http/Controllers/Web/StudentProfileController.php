@@ -52,7 +52,7 @@ class StudentProfileController extends Controller
                 'email' => 'required|email|unique:users,email,' . $user->id,
                 'phone' => 'nullable|string|max:20',
                 'student_id' => 'nullable|string|max:50',
-                'faculty' => 'required|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
+                'faculty' => 'required|string|in:' . implode(',', \App\Models\User::FACULTIES),
                 'bio' => 'nullable|string|max:500',
                 'address_line_1' => 'nullable|string|max:255',
                 'address_line_2' => 'nullable|string|max:255',

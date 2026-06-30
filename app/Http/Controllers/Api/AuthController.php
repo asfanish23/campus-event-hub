@@ -33,7 +33,7 @@ class AuthController extends Controller
             'email'      => 'required|email|unique:users',
             'password'   => 'required|min:6',
             'student_id' => 'sometimes|string|nullable',
-            'faculty'    => 'required|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
+            'faculty'    => 'required|string|in:' . implode(',', User::FACULTIES),
             'phone'      => 'sometimes|string|nullable',
             'address'    => 'sometimes|string|nullable',
             'state'      => 'sometimes|string|nullable',
@@ -123,7 +123,7 @@ class AuthController extends Controller
                     'email' => 'sometimes|email|unique:users,email,' . $user->id,
                     'phone' => 'sometimes|string|nullable',
                     'student_id' => 'sometimes|string|nullable',
-                    'faculty' => 'sometimes|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
+                    'faculty' => 'sometimes|string|in:' . implode(',', User::FACULTIES),
                     'address' => 'sometimes|string|nullable',
                     'city' => 'sometimes|string|nullable',
                     'postal_code' => 'sometimes|string|nullable',
@@ -248,6 +248,116 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Failed to retrieve orders: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function getFaculties()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => User::FACULTIES
+        ]);
+    }
+
+    public function googleLogin(Request $request, \App\Services\GoogleAuthService $googleAuthService)
+    {
+        $data = $request->json()->all() ?? $request->all();
+        
+        $validated = \Illuminate\Support\Facades\Validator::make($data, [
+            'access_token' => 'required|string',
+        ])->validate();
+
+        $accessToken = $validated['access_token'];
+
+        try {
+            // Retrieve Google user statelessly using access token via Socialite
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')
+                ->stateless()
+                ->userFromToken($accessToken);
+
+            if (!$googleUser) {
+                return response()->json([
+                    'message' => 'Failed to retrieve user info from Google'
+                ], 401);
+            }
+
+            // Process via the shared service (allowAutoCreate = false for mobile login check)
+            $result = $googleAuthService->processGoogleUser($googleUser, null, false);
+
+            if ($result['status'] === 'success') {
+                $user = $result['user'];
+                $token = $user->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Login successful',
+                    'user' => $user,
+                    'token' => $token
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'needs_registration',
+                    'email' => $result['email'],
+                    'name' => $result['name'],
+                    'google_id' => $result['google_id'],
+                    'avatar' => $result['avatar']
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Google API authentication failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => $e->getMessage() ?: 'Google authentication failed'
+            ], 422);
+        }
+    }
+
+    public function googleRegister(Request $request, \App\Services\GoogleAuthService $googleAuthService)
+    {
+        $data = $request->json()->all() ?? $request->all();
+        
+        $validated = \Illuminate\Support\Facades\Validator::make($data, [
+            'access_token' => 'required|string',
+            'faculty' => 'required|string|in:' . implode(',', User::FACULTIES),
+        ])->validate();
+
+        $accessToken = $validated['access_token'];
+
+        try {
+            // Retrieve Google user statelessly using access token via Socialite
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')
+                ->stateless()
+                ->userFromToken($accessToken);
+
+            if (!$googleUser) {
+                return response()->json([
+                    'message' => 'Failed to retrieve user info from Google'
+                ], 401);
+            }
+
+            // Process via the shared service (allowAutoCreate = true, passing selected faculty)
+            $result = $googleAuthService->processGoogleUser($googleUser, $validated['faculty'], true);
+
+            if ($result['status'] === 'success') {
+                $user = $result['user'];
+                $token = $user->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'message' => 'Registration successful',
+                    'user' => $user,
+                    'token' => $token
+                ], 201);
+            } else {
+                return response()->json([
+                    'message' => 'Failed to complete registration'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Google API registration failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => $e->getMessage() ?: 'Google registration failed'
+            ], 422);
         }
     }
 }

@@ -97,12 +97,11 @@
                         <label class="block text-gray-700 font-semibold mb-2">Faculty *</label>
                         <select name="faculty" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('faculty') border-red-500 @enderror" required>
                             <option value="">Select your faculty</option>
-                            <option value="Fakulti Perladangan dan Agroteknologi (FPA)" {{ old('faculty', $user->faculty) === 'Fakulti Perladangan dan Agroteknologi (FPA)' ? 'selected' : '' }}>
-                                Fakulti Perladangan dan Agroteknologi (FPA)
-                            </option>
-                            <option value="Fakulti Sains Komputer dan Matematik (FSKM)" {{ old('faculty', $user->faculty) === 'Fakulti Sains Komputer dan Matematik (FSKM)' ? 'selected' : '' }}>
-                                Fakulti Sains Komputer dan Matematik (FSKM)
-                            </option>
+                            @foreach(\App\Models\User::FACULTIES as $code => $name)
+                                <option value="{{ $name }}" {{ old('faculty', $user->faculty) === $name ? 'selected' : '' }}>
+                                    {{ $name }}
+                                </option>
+                            @endforeach
                         </select>
                         @error('faculty')
                             <p class="text-red-600 text-sm mt-1">{{ $message }}</p>

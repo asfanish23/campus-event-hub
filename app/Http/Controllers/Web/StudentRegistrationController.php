@@ -21,7 +21,7 @@ class StudentRegistrationController extends Controller
             'email' => 'required|email|unique:users,email',
             'phone' => 'required|string|max:20',
             'student_id' => 'required|string|unique:users,student_id',
-            'faculty' => 'required|string|in:Fakulti Perladangan dan Agroteknologi (FPA),Fakulti Sains Komputer dan Matematik (FSKM)',
+            'faculty' => 'required|string|in:' . implode(',', \App\Models\User::FACULTIES),
             'address_line_1' => 'required|string|max:255',
             'address_line_2' => 'nullable|string|max:255',
             'state' => 'required|string|max:100',

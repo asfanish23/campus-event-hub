@@ -11,8 +11,17 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
+use App\Services\GoogleAuthService;
+
 class GoogleController extends Controller
 {
+    protected $googleAuthService;
+
+    public function __construct(GoogleAuthService $googleAuthService)
+    {
+        $this->googleAuthService = $googleAuthService;
+    }
+
     /**
      * Redirect the user to the Google authentication page.
      *
@@ -40,37 +49,9 @@ class GoogleController extends Controller
         }
 
         try {
-            // Find existing user by google_id or email
-            $user = User::where('google_id', $googleUser->getId())
-                ->orWhere('email', $googleUser->getEmail())
-                ->first();
-
-            if ($user) {
-                // Check if the user is a student (Google Login is student-only)
-                if ($user->role !== 'student') {
-                    return redirect()->route('login')->withErrors([
-                        'email' => 'Google Sign-In is only available for student accounts.',
-                    ]);
-                }
-
-                // Update Google authentication info for existing student
-                $user->update([
-                    'google_id' => $googleUser->getId(),
-                    'avatar' => $googleUser->getAvatar(),
-                    'provider' => 'google',
-                ]);
-            } else {
-                // Register a new user as a student
-                $user = User::create([
-                    'name' => $googleUser->getName(),
-                    'email' => $googleUser->getEmail(),
-                    'google_id' => $googleUser->getId(),
-                    'avatar' => $googleUser->getAvatar(),
-                    'provider' => 'google',
-                    'password' => bcrypt(Str::random(24)),
-                    'role' => 'student',
-                ]);
-            }
+            // Process the Google user info using the shared service
+            $result = $this->googleAuthService->processGoogleUser($googleUser, null, true);
+            $user = $result['user'];
 
             // Authenticate and log the user into the system
             Auth::login($user);
@@ -84,7 +65,7 @@ class GoogleController extends Controller
         } catch (Exception $e) {
             Log::error('Error handling Google callback: ' . $e->getMessage());
             return redirect()->route('login')->withErrors([
-                'email' => 'An unexpected error occurred during Google Sign-In. Please try again.',
+                'email' => $e->getMessage() ?: 'An unexpected error occurred during Google Sign-In. Please try again.',
             ]);
         }
     }
