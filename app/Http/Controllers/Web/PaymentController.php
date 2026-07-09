@@ -60,23 +60,17 @@ class PaymentController extends Controller
                 'event_id' => 'required_if:payment_type,event_registration|exists:events,id',
                 'quantity' => 'nullable|integer|min:1',
             ]);
-
             $user = auth()->user();
-
-            // Calculate amount and get item details
             if ($validated['payment_type'] === 'merchandise') {
                 $product = Product::with('variants')->findOrFail($validated['product_id']);
                 $quantity = $validated['quantity'] ?? 1;
                 $variant = null;
-
                 if ($product->hasVariants() && !empty($validated['product_variant_id'])) {
                     $variant = $product->variants()->whereKey($validated['product_variant_id'])->first();
                 }
-
                 if ($product->hasVariants() && !$variant) {
                     return back()->with('error', 'Please select a valid product variant.');
                 }
-
                 $unitPrice = (float) ($variant?->price ?? $product->price);
                 $amount = $unitPrice * $quantity;
                 $description = $variant
@@ -89,8 +83,6 @@ class PaymentController extends Controller
                 $description = "Event Registration: {$event->name}";
                 $relatedId = $event->id;
             }
-
-            // Create payment record (status: pending)
             $externalRef = $this->generateExternalReference();
             $payment = Payment::create([
                 'user_id' => $user->id,

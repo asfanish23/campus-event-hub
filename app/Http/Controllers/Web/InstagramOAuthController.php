@@ -131,22 +131,18 @@ class InstagramOAuthController extends Controller
                 'grant_type' => 'ig_refresh_token',
                 'access_token' => $accessToken,
             ]);
-
             if ($longTokenResponse->successful()) {
                 $accessToken = $longTokenResponse->json('access_token', $accessToken);
             }
-
             // Get Instagram business account details
             $accountResponse = Http::get("https://graph.instagram.com/v18.0/{$userId}", [
                 'fields' => 'id,username',
                 'access_token' => $accessToken,
             ]);
-
             if (!$accountResponse->successful()) {
                 Log::error('Failed to get Instagram account details', ['response' => $accountResponse->json()]);
                 return redirect()->route('club-profile.edit')->with('error', 'Failed to get Instagram account details.');
             }
-
             $accountData = $accountResponse->json();
             $businessId = $accountData['id'] ?? null;
             $username = $accountData['username'] ?? null;
@@ -154,11 +150,9 @@ class InstagramOAuthController extends Controller
             if (!$businessId || !$username) {
                 return redirect()->route('club-profile.edit')->with('error', 'Could not retrieve Instagram account information.');
             }
-
             // Get club from session
             $clubId = session('instagram_club_id');
             $club = Club::findOrFail($clubId);
-
             // Save Instagram account
             $instagramAccount = InstagramAccount::firstOrNew(['club_id' => $club->id]);
             $instagramAccount->fill([

@@ -53,6 +53,8 @@ Route::get('/health', function () {
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'requestPasswordReset']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 Route::post('/auth/google/register', [AuthController::class, 'googleRegister']);
 Route::get('/faculties', [AuthController::class, 'getFaculties']);

@@ -60,7 +60,6 @@ class GeminiService
                 }
 
                 $modelUrl = $this->baseUrl . '/' . $this->currentModel . ':generateContent';
-                
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json',
                 ])->timeout(30)->post($modelUrl . '?key=' . $this->apiKey, [
@@ -73,30 +72,25 @@ class GeminiService
                         'topP' => 0.95,
                     ]
                 ]);
-
                 // Jika rate limited, tukar ke Lite model
                 if ($response->status() === 429 && $this->currentModel === $this->primaryModel) {
                     Log::warning('Rate limit hit on ' . $this->primaryModel . ', switching to ' . $this->fallbackModel);
                     $this->currentModel = $this->fallbackModel;
                     continue;
                 }
-
                 if ($response->status() !== 429) break;
             }
-
             if ($response->failed()) {
                 Log::error('Gemini API Error Detail', [
                     'status' => $response->status(),
                     'model' => $this->currentModel,
                     'response' => $response->json()
                 ]);
-
                 return [
                     'success' => false, 
-                    'error' => $response->status() === 429 ? 'Rate limit hit. Cuba lagi kejap lagi.' : 'API Error: ' . $response->status()
+                    'error' => $response->status() === 429 ? 'Rate limit hit. Try again later.' : 'API Error: ' . $response->status()
                 ];
             }
-
             $data = $response->json();
             $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
 

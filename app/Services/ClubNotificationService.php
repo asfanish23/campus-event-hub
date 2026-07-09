@@ -14,23 +14,18 @@ class ClubNotificationService
         if (! $event->club_id) {
             return 0;
         }
-
         $club = $event->club()->first();
         if (! $club) {
             return 0;
         }
-
         $followerIds = ClubFollower::query()
             ->where('club_id', $event->club_id)
             ->pluck('user_id')
             ->all();
-
         if (empty($followerIds)) {
             return 0;
         }
-
         $created = 0;
-
         foreach ($followerIds as $userId) {
             $notification = ClubNotification::firstOrCreate(
                 [
@@ -50,18 +45,15 @@ class ClubNotificationService
                     'is_read' => false,
                 ]
             );
-
             if ($notification->wasRecentlyCreated) {
                 $created++;
             }
         }
-
         Log::info('Club follower notifications generated', [
             'event_id' => $event->id,
             'club_id' => $club->id,
             'created_count' => $created,
         ]);
-
         return $created;
     }
 }

@@ -8,6 +8,10 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Auth\Events\PasswordReset;
+use App\Services\ResendEmailService;
 
 class AuthController extends Controller
 {
@@ -100,6 +104,94 @@ class AuthController extends Controller
             'user' => $user,
             'token' => $token
         ]);
+    }
+
+    public function requestPasswordReset(Request $request, ResendEmailService $resendEmailService)
+    {
+        $validated = \Illuminate\Support\Facades\Validator::make(
+            $request->json()->all() ?? $request->all(),
+            [
+                'email' => 'required|email',
+            ]
+        )->validate();
+
+        // Allow reset for the same roles supported by web auth flow.
+        $user = User::where('email', $validated['email'])
+            ->whereIn('role', ['admin', 'super_admin', 'student'])
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'We could not find an account with that email address.',
+            ], 404);
+        }
+
+        try {
+            $token = Password::createToken($user);
+            $resetUrl = route('password.reset', ['token' => $token, 'email' => $user->email]);
+
+            $sent = $resendEmailService->sendPasswordResetEmail(
+                $user->email,
+                $user->name ?? 'User',
+                $resetUrl
+            );
+
+            if (!$sent) {
+                return response()->json([
+                    'message' => 'Unable to send reset link. Please try again later.',
+                ], 500);
+            }
+
+            return response()->json([
+                'message' => 'Password reset link sent',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send password reset email via API.', [
+                'email' => $validated['email'],
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Unable to send reset link. Please try again later.',
+            ], 500);
+        }
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $payload = $request->json()->all() ?? $request->all();
+
+        $validated = \Illuminate\Support\Facades\Validator::make($payload, [
+            'token' => 'required|string',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8',
+        ])->validate();
+
+        $status = Password::reset(
+            [
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'token' => $validated['token'],
+            ],
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => bcrypt($password),
+                ])->save();
+
+                $user->tokens()->delete();
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'Password reset successful',
+            ]);
+        }
+
+        return response()->json([
+            'message' => trans($status),
+        ], 422);
     }
 
     /**
@@ -270,8 +362,15 @@ class AuthController extends Controller
         $accessToken = $validated['access_token'];
 
         try {
+            $googleProvider = \Laravel\Socialite\Facades\Socialite::driver('google');
+            if (!$googleProvider instanceof \Laravel\Socialite\Two\AbstractProvider) {
+                return response()->json([
+                    'message' => 'Google provider configuration error'
+                ], 500);
+            }
+
             // Retrieve Google user statelessly using access token via Socialite
-            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')
+            $googleUser = $googleProvider
                 ->stateless()
                 ->userFromToken($accessToken);
 
@@ -324,8 +423,15 @@ class AuthController extends Controller
         $accessToken = $validated['access_token'];
 
         try {
+            $googleProvider = \Laravel\Socialite\Facades\Socialite::driver('google');
+            if (!$googleProvider instanceof \Laravel\Socialite\Two\AbstractProvider) {
+                return response()->json([
+                    'message' => 'Google provider configuration error'
+                ], 500);
+            }
+
             // Retrieve Google user statelessly using access token via Socialite
-            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')
+            $googleUser = $googleProvider
                 ->stateless()
                 ->userFromToken($accessToken);
 
