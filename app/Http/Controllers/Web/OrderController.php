@@ -16,6 +16,9 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        if (!$user) {
+            abort(401);
+        }
         // Get orders only for products from the club admin's club
         $query = Order::with('product')
             ->whereIn('product_id', Product::where('club_id', $user->club_id)->pluck('id'));

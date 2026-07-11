@@ -26,7 +26,7 @@ class AdminUserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'faculty_or_program' => $user->faculty ?? $user->program ?? null,
+            'faculty_or_program' => $user->faculty ?? null,
             'account_status' => $user->admin_status ?? null,
             'joined_date' => optional($user->created_at)->toDateString(),
         ];

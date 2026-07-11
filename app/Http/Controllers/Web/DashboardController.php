@@ -21,6 +21,9 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
         $club = Club::find($user->club_id);
         
         // Check if user is a club user or student user

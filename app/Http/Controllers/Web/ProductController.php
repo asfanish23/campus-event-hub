@@ -36,6 +36,9 @@ class ProductController extends Controller
     public function index()
     {
         $user = Auth::user();
+        if (!$user) {
+            abort(401);
+        }
         $products = Product::where('club_id', $user->club_id)->with(['media', 'variants'])->get();
         $totalProducts = Product::where('club_id', $user->club_id)->count();
         $totalSales = Order::whereIn('product_id', Product::where('club_id', $user->club_id)->pluck('id'))->sum('total') ?? 0;

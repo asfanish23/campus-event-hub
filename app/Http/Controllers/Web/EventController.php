@@ -45,6 +45,9 @@ class EventController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        if (!$user) {
+            abort(401);
+        }
         $query = Event::query()->where('club_id', $user->club_id);
 
         // Filter by status

@@ -34,6 +34,9 @@ class InstagramController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        if (!$user) {
+            abort(401);
+        }
 
         $query = Event::where('club_id', $user->club_id)
             ->with(['socialPosts' => function ($q) {
@@ -412,14 +415,20 @@ class InstagramController extends Controller
 
     private function getOwnedEvent(int $eventId): Event
     {
+        $user = Auth::user();
+        if (!$user) {
+            abort(401);
+        }
+
         return Event::where('id', $eventId)
-            ->where('club_id', Auth::user()->club_id)
+            ->where('club_id', $user->club_id)
             ->firstOrFail();
     }
 
     private function ensureOwnedEvent(Event $event): void
     {
-        if ($event->club_id !== Auth::user()->club_id) {
+        $user = Auth::user();
+        if (!$user || $event->club_id !== $user->club_id) {
             abort(403);
         }
     }

@@ -19,6 +19,9 @@ class InstagramOAuthController extends Controller
     {
         try {
             $user = Auth::user();
+            if (!$user) {
+                return redirect()->route('club-profile.edit')->with('error', 'Unauthorized.');
+            }
             Log::info('OAuth redirect started for user', ['user_id' => $user->id, 'club_id' => $clubId]);
             
             // Get the club by ID

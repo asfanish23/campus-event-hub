@@ -53,8 +53,6 @@ class Event extends Model
         'instagram_auto_repost' => 'boolean',
         'instagram_repost_at' => 'datetime',
         'instagram_reposted' => 'boolean',
-        'instagram_scheduled_at' => 'datetime',
-        'instagram_scheduled_posted' => 'boolean',
     ];
 
     public function club()

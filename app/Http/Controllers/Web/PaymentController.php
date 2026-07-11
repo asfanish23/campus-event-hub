@@ -406,7 +406,9 @@ class PaymentController extends Controller
             }
         }
 
-        if (empty($productIds) && $payment->related_id) {
+        $productIds = [];
+
+        if ($payment->related_id) {
             $productIds[] = (int) $payment->related_id;
         }
 
