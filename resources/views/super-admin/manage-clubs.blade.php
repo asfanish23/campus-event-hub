@@ -185,10 +185,10 @@
                                                     </button>
                                                 </form>
                                             @endif
-                                            <form method="POST" action="{{ route('super-admin.clubs.delete', $club) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this club? This action cannot be undone.');">
+                                            <form method="POST" action="{{ route('super-admin.clubs.delete', $club) }}" class="inline delete-club-form">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="admin-action-btn admin-action-btn--delete">
+                                                <button type="button" class="admin-action-btn admin-action-btn--delete" data-club-name="{{ $club->name }}" onclick="openDeleteClubModal(this)">
                                                     Delete
                                                 </button>
                                             </form>
@@ -210,6 +210,22 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Delete Club Confirmation Modal -->
+    <div id="deleteClubModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="deleteClubModalTitle">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 id="deleteClubModalTitle" class="text-lg font-bold text-gray-800 mb-2">Delete Club</h3>
+            <p class="text-gray-600 mb-6">Are you sure you want to delete "<span id="deleteClubName" class="font-semibold text-gray-800"></span>"? This action cannot be undone.</p>
+            <div class="flex gap-3 justify-end">
+                <button type="button" id="deleteClubCancelBtn" onclick="closeDeleteClubModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
+                    Cancel
+                </button>
+                <button type="button" id="confirmDeleteClubBtn" onclick="confirmDeleteClub()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">
+                    Delete
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -239,6 +255,84 @@
 
             searchInput.addEventListener('input', applyFilters);
             categoryFilter.addEventListener('change', applyFilters);
+        });
+
+        let deleteClubForm = null;
+        let deleteClubName = '';
+
+        function openDeleteClubModal(btn) {
+            deleteClubForm = btn.closest('form');
+            deleteClubName = btn.dataset.clubName || '';
+
+            document.getElementById('deleteClubName').textContent = deleteClubName;
+
+            const modal = document.getElementById('deleteClubModal');
+            modal.classList.remove('hidden');
+
+            document.body.style.overflow = 'hidden';
+
+            document.getElementById('deleteClubCancelBtn').focus();
+        }
+
+        function closeDeleteClubModal() {
+            const modal = document.getElementById('deleteClubModal');
+            modal.classList.add('hidden');
+
+            document.body.style.overflow = '';
+
+            const confirmBtn = document.getElementById('confirmDeleteClubBtn');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Delete';
+
+            deleteClubForm = null;
+            deleteClubName = '';
+        }
+
+        function confirmDeleteClub() {
+            if (!deleteClubForm) return;
+
+            const confirmBtn = document.getElementById('confirmDeleteClubBtn');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Deleting...';
+
+            deleteClubForm.submit();
+        }
+
+        document.getElementById('deleteClubModal').addEventListener('click', (e) => {
+            if (e.target.id === 'deleteClubModal') {
+                closeDeleteClubModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('deleteClubModal');
+            if (modal.classList.contains('hidden')) return;
+
+            if (e.key === 'Escape') {
+                closeDeleteClubModal();
+                return;
+            }
+
+            if (e.key === 'Tab') {
+                const cancelBtn = document.getElementById('deleteClubCancelBtn');
+                const confirmBtn = document.getElementById('confirmDeleteClubBtn');
+                const focusable = [cancelBtn, confirmBtn];
+
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
         });
     </script>
 </body>
