@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
 
 /**
  * Test callback endpoint - for sandbox/development testing only
@@ -41,7 +40,7 @@ class PaymentTestController extends Controller
 
         Log::info('TEST: Payment marked as paid', ['payment_id' => $paymentId]);
 
-        return redirect(URL::signedRoute('payment.return', ['payment_id' => $paymentId]))
+        return redirect(route('payment.return', ['payment_id' => $paymentId]))
             ->with('success', 'Test payment completed successfully!');
     }
 
@@ -71,7 +70,7 @@ class PaymentTestController extends Controller
 
         Log::info('TEST: Payment marked as failed', ['payment_id' => $paymentId]);
 
-        return redirect(URL::signedRoute('payment.return', ['payment_id' => $paymentId]))
+        return redirect(route('payment.return', ['payment_id' => $paymentId]))
             ->with('error', 'Test payment failed!');
     }
 }

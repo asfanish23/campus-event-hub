@@ -11,7 +11,6 @@ use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -99,7 +98,7 @@ class PaymentController extends Controller
                 billDescription: "Order {$externalRef}",
                 billAmount: intval($amount * 100), // Convert to cents
                 billExternalReferenceNumber: $externalRef,
-                returnUrl: URL::signedRoute('payment.return', ['payment_id' => $payment->id]),
+                returnUrl: route('payment.return', ['payment_id' => $payment->id]),
                 callbackUrl: route('payment.callback')
             );
 
@@ -206,7 +205,7 @@ class PaymentController extends Controller
                 billDescription: $billDescription,
                 billAmount: intval($totalAmount * 100), // Convert to cents
                 billExternalReferenceNumber: $externalRef,
-                returnUrl: URL::signedRoute('payment.return', ['payment_id' => $payment->id]),
+                returnUrl: route('payment.return', ['payment_id' => $payment->id]),
                 callbackUrl: route('payment.callback')
             );
 
@@ -253,6 +252,11 @@ class PaymentController extends Controller
      * - billcode: The bill code we created
      * - status: 1 (success), 2 (pending), 3 (fail)
      * - refno: ToyyibPay's reference number
+     * - order_id: Our external reference no (billExternalReferenceNo)
+     * - hash: MD5 signature for verification
+     * 
+     * Hash verification formula (from ToyyibPay docs):
+     * MD5( userSecretKey + status + order_id + refno + "ok" )
      */
     public function callback(Request $request)
     {
@@ -262,6 +266,29 @@ class PaymentController extends Controller
             $billCode = $request->input('billcode');
             $status = $request->input('status');
             $refno = $request->input('refno');
+            $orderId = $request->input('order_id');
+            $receivedHash = $request->input('hash');
+
+            // Verify callback authenticity using ToyyibPay's MD5 hash
+            $expectedHash = md5(
+                config('services.toyyibpay.secret_key')
+                . $status
+                . $orderId
+                . $refno
+                . 'ok'
+            );
+
+            if ($receivedHash !== $expectedHash) {
+                Log::warning('ToyyibPay Callback Hash Mismatch', [
+                    'expected' => $expectedHash,
+                    'received' => $receivedHash,
+                    'bill_code' => $billCode,
+                    'status' => $status,
+                    'refno' => $refno,
+                    'order_id' => $orderId,
+                ]);
+                return response('Invalid hash', 403);
+            }
 
             // Find payment by bill code
             $payment = Payment::where('bill_code', $billCode)->first();
@@ -306,33 +333,63 @@ class PaymentController extends Controller
      * GET /payment/return
      * 
      * User-facing return page after payment
-     * Displays success/failure message based on payment status
-     * Also verifies status from ToyyibPay if not already confirmed
+     * ToyyibPay appends: status_id (1=success, 3=fail), billcode, order_id
+     * Uses these parameters directly when available (fast path)
+     * Falls back to API verification if still pending
      */
     public function return(Request $request)
     {
         try {
             $paymentId = $request->input('payment_id');
-            $payment = Payment::findOrFail($paymentId);
 
-            // If payment is already marked as paid or failed, show the cached status
+            // Verify payment belongs to the authenticated user
+            $payment = Payment::where('id', $paymentId)
+                ->where('user_id', auth()->id())
+                ->firstOrFail();
+
+            // If already processed by callback, show status immediately
             if ($payment->status !== 'pending') {
-                if ($payment->isPaid()) {
+                $view = $payment->isPaid() ? 'payment.success' : 'payment.failed';
+                return view($view, compact('payment'));
+            }
+
+            // ToyyibPay appends status_id, billcode, order_id to return URL
+            $statusId = $request->input('status_id');
+            $billcode = $request->input('billcode');
+
+            // Fast path: use ToyyibPay's redirect parameters if billcode matches
+            if ($statusId !== null && $billcode !== null && $billcode === $payment->bill_code) {
+                if ($statusId == 1) {
+                    $payment->update([
+                        'status' => 'paid',
+                        'transaction_time' => now(),
+                        'callback_response' => array_merge($payment->callback_response ?? [], [
+                            'return_url_status_id' => $statusId,
+                            'return_url_billcode' => $billcode,
+                            'return_url_order_id' => $request->input('order_id'),
+                        ]),
+                    ]);
+                    $this->handleSuccessfulPayment($payment);
+                    Log::info('Payment Confirmed via Return URL', ['payment_id' => $payment->id]);
                     return view('payment.success', compact('payment'));
-                } else {
+                } elseif ($statusId == 3) {
+                    $payment->update([
+                        'status' => 'failed',
+                        'callback_response' => array_merge($payment->callback_response ?? [], [
+                            'return_url_status_id' => $statusId,
+                            'return_url_billcode' => $billcode,
+                        ]),
+                    ]);
+                    Log::info('Payment Failed via Return URL', ['payment_id' => $payment->id]);
                     return view('payment.failed', compact('payment'));
                 }
             }
 
-            // Payment is still pending - verify status from ToyyibPay API
-            // This handles cases where callback didn't arrive (e.g., ngrok limitations)
+            // Fallback: verify via API (handles delayed callbacks, ngrok, etc.)
             if ($payment->bill_code) {
                 $verified = $this->verifyPaymentStatusFromToyyibPay($payment);
-                if ($verified) {
-                    // Status was updated by verification
-                    if ($payment->isPaid()) {
-                        return view('payment.success', compact('payment'));
-                    }
+                if ($verified && $payment->isPaid()) {
+                    return view('payment.success', compact('payment'));
                 }
             }
 

@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
@@ -621,7 +620,7 @@ class CartController extends Controller
                 billDescription: $billDescription,
                 billAmount: intval($totalAmount * 100),
                 billExternalReferenceNumber: $externalRef,
-                returnUrl: URL::signedRoute('payment.return', ['payment_id' => $payment->id]),
+                returnUrl: route('payment.return', ['payment_id' => $payment->id]),
                 callbackUrl: route('payment.callback'),
                 payorDetails: $payorDetails,
             );
