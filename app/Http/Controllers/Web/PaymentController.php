@@ -339,6 +339,13 @@ class PaymentController extends Controller
      */
     public function return(Request $request)
     {
+         Log::info('========== PAYMENT RETURN HIT ==========', [
+        'full_url' => $request->fullUrl(),
+        'route' => optional($request->route())->getName(),
+        'middleware' => optional($request->route())->gatherMiddleware(),
+        'user_id' => auth()->id(),
+        'request' => $request->all(),
+        ]);
         try {
             $paymentId = $request->input('payment_id');
 

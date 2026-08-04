@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -26,7 +27,7 @@ class Handler extends ExceptionHandler
         $this->renderable(function (\Illuminate\Validation\ValidationException $e, $request) {
             // Always return JSON for /api/* requests, regardless of Accept header
             if ($request->is('api/*') || str_contains($request->getPathInfo(), '/api/')) {
-                \Log::error('Validation exception on API', [
+                Log::error('Validation exception on API', [
                     'errors' => $e->errors(),
                     'path' => $request->getPathInfo(),
                     'expects_json' => $request->expectsJson()
