@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="{{ asset('images/uitm_logo.png') }}?v={{ filemtime(public_path('images/uitm_logo.png')) }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Clubs | Campus Event Hub</title>
     @vite('resources/css/app.css')
