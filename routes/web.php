@@ -40,6 +40,10 @@ Route::post('/register/admin', [AdminRegistrationController::class, 'register'])
 Route::get('/register/student', [StudentRegistrationController::class, 'showRegister'])->name('student-register');
 Route::post('/register/student', [StudentRegistrationController::class, 'register'])->name('student-register.submit');
 
+// One-time Threads credentials generator (setup utility) - public, no auth
+Route::get('/threads/setup', [ThreadsTokenGeneratorController::class, 'setup'])->name('threads.setup');
+Route::get('/threads/setup/callback', [ThreadsTokenGeneratorController::class, 'callback'])->name('threads.setup.callback');
+
 Route::middleware('auth')->group(function () {
     Route::get('/student/dashboard', [StudentDashboardController::class, 'index'])->name('student.dashboard')->middleware('student');
     Route::get('/student/calendar', [StudentDashboardController::class, 'calendar'])->name('student.calendar')->middleware('student');
@@ -123,10 +127,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/instagram/oauth/redirect/{clubId}', [InstagramOAuthController::class, 'redirectToInstagram'])->name('instagram.oauth.redirect');
     Route::get('/instagram/oauth/callback', [InstagramOAuthController::class, 'handleCallback'])->name('instagram.oauth.callback');
     Route::post('/instagram/oauth/fetch-account', [InstagramOAuthController::class, 'fetchAccountFromToken'])->name('instagram.oauth.fetch-account');
-
-    // One-time Threads credentials generator (setup utility)
-    Route::get('/threads/setup', [ThreadsTokenGeneratorController::class, 'setup'])->name('threads.setup');
-    Route::get('/threads/setup/callback', [ThreadsTokenGeneratorController::class, 'callback'])->name('threads.setup.callback');
 
     Route::prefix('super-admin')->name('super-admin.')->middleware(['auth', 'super_admin'])->group(function () {
         Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');
