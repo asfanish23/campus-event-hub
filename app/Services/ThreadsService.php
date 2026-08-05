@@ -440,4 +440,70 @@ class ThreadsService
 
         return null;
     }
+
+    /**
+     * Refresh an unexpired long-lived Threads user access token.
+     *
+     * Long-lived tokens are valid for 60 days. They can be refreshed as long as
+     * they are at least 24 hours old but have not yet expired. Refreshed tokens
+     * are valid for 60 days from the date of refresh.
+     *
+     * Official docs: GET https://graph.threads.net/refresh_access_token
+     *   ?grant_type=th_refresh_token&access_token=<LONG_LIVED_ACCESS_TOKEN>
+     *
+     * @param string $accessToken The valid (unexpired) long-lived access token
+     *
+     * @return array Response containing success status, new token and expiry
+     */
+    public function refreshLongLivedToken(string $accessToken): array
+    {
+        $response = Http::get('https://graph.threads.net/refresh_access_token', [
+            'grant_type' => 'th_refresh_token',
+            'access_token' => $accessToken,
+        ]);
+
+        if (!$response->successful()) {
+            $errorData = $response->json('error') ?? [];
+            $error = $errorData['message'] ?? $response->body();
+
+            Log::error('Threads token refresh failed', [
+                'status' => $response->status(),
+                'error_message' => $error,
+                'response' => $response->json(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to refresh Threads token: ' . $error,
+                'access_token' => null,
+                'expires_in' => null,
+            ];
+        }
+
+        $refreshedToken = $response->json('access_token');
+
+        if (!$refreshedToken) {
+            Log::error('Threads token refresh response missing access_token', [
+                'response' => $response->json(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Threads token refresh response did not include an access token.',
+                'access_token' => null,
+                'expires_in' => null,
+            ];
+        }
+
+        Log::info('Threads token refreshed successfully', [
+            'expires_in' => $response->json('expires_in'),
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Threads token refreshed successfully',
+            'access_token' => $refreshedToken,
+            'expires_in' => $response->json('expires_in'),
+        ];
+    }
 }

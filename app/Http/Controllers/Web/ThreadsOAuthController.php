@@ -53,14 +53,19 @@ class ThreadsOAuthController extends Controller
             session(['threads_club_id' => $club->id]);
 
             $clientId = config('services.threads.app_id');
-            
-            // Use the exact ngrok URL for redirect URI
-            $redirectUri = config('app.url') . '/threads/oauth/callback';
+
+            // Exact redirect URI configured in services.php / .env.
+            // Must byte-for-byte match a URI whitelisted in App Dashboard > Threads > Client OAuth Settings.
+            $redirectUri = config('services.threads.redirect');
 
             Log::info('Threads OAuth config loaded', ['clientId' => $clientId, 'redirectUri' => $redirectUri]);
 
             if (!$clientId) {
                 return redirect()->route('club-profile.edit')->with('error', 'Threads app not configured. Contact administrator.');
+            }
+
+            if (!$redirectUri) {
+                return redirect()->route('club-profile.edit')->with('error', 'Threads redirect URI not configured. Contact administrator.');
             }
 
             // Threads' official OAuth endpoint
@@ -101,12 +106,13 @@ class ThreadsOAuthController extends Controller
         }
 
         try {
-            // Exchange code for access token
+            // Exchange code for a short-lived access token.
+            // Official docs: POST https://graph.threads.net/oauth/access_token
             $clientId = config('services.threads.app_id');
             $clientSecret = config('services.threads.app_secret');
-            $redirectUri = config('app.url') . '/threads/oauth/callback';
+            $redirectUri = config('services.threads.redirect');
 
-            $response = Http::get('https://graph.threads.net/access_token', [
+            $response = Http::asForm()->post('https://graph.threads.net/oauth/access_token', [
                 'client_id' => $clientId,
                 'client_secret' => $clientSecret,
                 'grant_type' => 'authorization_code',
@@ -117,6 +123,7 @@ class ThreadsOAuthController extends Controller
             if (!$response->successful()) {
                 Log::error('Threads OAuth token exchange failed', [
                     'status' => $response->status(),
+                    'response' => $response->json(),
                 ]);
                 return redirect()->route('club-profile.edit')->with('error', 'Failed to get Threads token.');
             }
@@ -129,13 +136,25 @@ class ThreadsOAuthController extends Controller
                 return redirect()->route('club-profile.edit')->with('error', 'Could not retrieve Threads credentials.');
             }
 
-            // Get long-lived token (valid for 60 days instead of 1 hour)
+            // Exchange the short-lived token for a long-lived token (valid 60 days).
+            // Official docs: GET https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=...&access_token=...
+            $tokenExpiresAt = now()->addDays(60);
             $longTokenResponse = Http::get('https://graph.threads.net/access_token', [
-                'grant_type' => 'th_refresh_token',
+                'grant_type' => 'th_exchange_token',
+                'client_secret' => $clientSecret,
                 'access_token' => $accessToken,
             ]);
             if ($longTokenResponse->successful()) {
                 $accessToken = $longTokenResponse->json('access_token', $accessToken);
+                $expiresIn = $longTokenResponse->json('expires_in');
+                if ($expiresIn) {
+                    $tokenExpiresAt = now()->addSeconds((int) $expiresIn);
+                }
+            } else {
+                Log::warning('Threads long-lived token exchange failed', [
+                    'status' => $longTokenResponse->status(),
+                    'response' => $longTokenResponse->json(),
+                ]);
             }
             // Get Threads account details
             $accountResponse = Http::get("https://graph.threads.net/v1.0/me", [
@@ -163,6 +182,7 @@ class ThreadsOAuthController extends Controller
                 'threads_user_id' => $threadsUserId,
                 'access_token' => $accessToken,
                 'is_active' => true,
+                'token_expires_at' => $tokenExpiresAt,
                 'connection_method' => 'oauth',
             ]);
             $threadsAccount->save();

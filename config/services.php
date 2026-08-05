@@ -51,6 +51,7 @@ return [
         'user_id' => env('THREADS_USER_ID'),
         'app_id' => env('THREADS_APP_ID'),
         'app_secret' => env('THREADS_APP_SECRET'),
+        'redirect' => env('THREADS_REDIRECT_URI'),
     ],
 
     // ImgBB Image Hosting API configuration

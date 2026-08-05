@@ -296,6 +296,7 @@ class InstagramController extends Controller
                 $caption = $this->buildCaption($event, $alreadyPosted);
 
                 if ($threadsAccount && $threadsAccount->isTokenValid()) {
+                    $this->refreshThreadsTokenIfNeeded($threadsAccount);
                     $token = $threadsAccount->getDecryptedToken();
                     $threadsUserId = $threadsAccount->threads_user_id;
                     $response = $this->threadsService->postImageWithCustomCredentials($publicImageUrl, $caption, $token, $threadsUserId);
@@ -478,6 +479,29 @@ class InstagramController extends Controller
         }
     }
 
+    /**
+     * Refresh a club Threads access token when it is within 30 days of expiry.
+     *
+     * Long-lived tokens are valid for 60 days and can be refreshed while unexpired.
+     */
+    private function refreshThreadsTokenIfNeeded(ThreadsAccount $threadsAccount): void
+    {
+        if (!$threadsAccount->token_expires_at || $threadsAccount->token_expires_at->gt(now()->addDays(30))) {
+            return;
+        }
+
+        $refresh = $this->threadsService->refreshLongLivedToken($threadsAccount->getDecryptedToken());
+
+        if (($refresh['success'] ?? false) && !empty($refresh['access_token'])) {
+            $threadsAccount->update([
+                'access_token' => $refresh['access_token'],
+                'token_expires_at' => $refresh['expires_in']
+                    ? now()->addSeconds((int) $refresh['expires_in'])
+                    : now()->addDays(60),
+            ]);
+        }
+    }
+
     private function postToThreadsSilently(Event $event): array
     {
         $user = Auth::user();
@@ -493,6 +517,7 @@ class InstagramController extends Controller
             $caption = $this->buildCaption($event, $event->isPostedToPlatform(SocialPost::PLATFORM_THREADS));
 
             if ($threadsAccount && $threadsAccount->isTokenValid()) {
+                $this->refreshThreadsTokenIfNeeded($threadsAccount);
                 $token = $threadsAccount->getDecryptedToken();
                 $threadsUserId = $threadsAccount->threads_user_id;
                 $response = $this->threadsService->postImageWithCustomCredentials($publicImageUrl, $caption, $token, $threadsUserId);
