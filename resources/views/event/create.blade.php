@@ -174,26 +174,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-6">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
-                                <div style="position: relative;">
-                                    <textarea id="eventDescription" name="description" rows="5" required placeholder="(Optional) Add extra details before generating! E.g., free breakfast, free merchandise, limited seats, special perks, etc." maxlength="500" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 transition-all">{{ old('description') }}</textarea>
-                                    
-                                    <button type="button" id="generateBtn" 
-                                            style="position: absolute; bottom: 10px; right: 10px; border: none; background: #6e45e2; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: 500; transition: all 0.3s ease; hover:background: #5a36c7;">
-                                        ✨ Generate with AI
-                                    </button>
-                                </div>
-                                <small style="color: #888; display: block; margin-top: 6px;">💡 Tip: Add any special details (free food, limited spots, prizes, etc.) above. Gemini will use them to create a better description! (Max 500 characters)</small>
-                                <small id="aiStatus" style="color: #888; display: none; margin-top: 8px; display: block;">⏳ Gemini is thinking...</small>
-
-                                <!-- Tweak Buttons -->
-                                <div id="tweakContainer" style="display: none; margin-top: 12px; gap: 8px; display: none; flex-wrap: wrap;">
-                                    <button type="button" class="tweak-btn" data-style="funnier" style="padding: 6px 12px; border: 1px solid #ddd; background: white; color: #666; border-radius: 16px; font-size: 11px; cursor: pointer; transition: all 0.2s ease;">😄 Funnier</button>
-                                    <button type="button" class="tweak-btn" data-style="professional" style="padding: 6px 12px; border: 1px solid #ddd; background: white; color: #666; border-radius: 16px; font-size: 11px; cursor: pointer; transition: all 0.2s ease;">📋 Professional</button>
-                                    <button type="button" class="tweak-btn" data-style="shorter" style="padding: 6px 12px; border: 1px solid #ddd; background: white; color: #666; border-radius: 16px; font-size: 11px; cursor: pointer; transition: all 0.2s ease;">✂️ Shorter</button>
-                                </div>
-                            </div>
+                            @include('partials.ai-caption-generator')
                         </div>
 
                         <!-- Multiple Photos Section -->
@@ -274,12 +255,6 @@
     </div>
 
     <script>
-        const textArea = document.getElementById('eventDescription');
-        const generateBtn = document.getElementById('generateBtn');
-        const aiStatus = document.getElementById('aiStatus');
-        const tweakContainer = document.getElementById('tweakContainer');
-        const tweakBtns = document.querySelectorAll('.tweak-btn');
-
         // ============================================
         // INSTAGRAM AUTO-POSTING SECTION
         // ============================================
@@ -322,153 +297,7 @@
         });
 
         // ============================================
-        // 1. TYPING EFFECT FUNCTION (Kesan Mengetik)
-        // ============================================
-        function typeEffect(element, text, speed = 15) {
-            let i = 0;
-            element.value = "";
-            
-            // Add pulsing animation to border
-            element.style.borderColor = '#a78bfa';
-            element.style.boxShadow = '0 0 0 3px rgba(167, 139, 250, 0.1)';
-            
-            return new Promise((resolve) => {
-                const timer = setInterval(() => {
-                    if (i < text.length) {
-                        element.value += text.charAt(i);
-                        i++;
-                        element.scrollTop = element.scrollHeight;
-                    } else {
-                        clearInterval(timer);
-                        element.style.borderColor = '#d1d5db';
-                        element.style.boxShadow = 'none';
-                        resolve();
-                    }
-                }, speed);
-            });
-        }
-
-        // ============================================
-        // 2. GENERATE DESCRIPTION (Backend Call)
-        // ============================================
-        generateBtn.addEventListener('click', async () => {
-            const eventName = document.querySelector('[name="name"]').value;
-            const category = document.querySelector('[name="category"]').value;
-            const location = document.querySelector('[name="location"]').value;
-            const attendees = document.querySelector('[name="expected_attendees"]').value;
-            const extraDetails = textArea.value.trim();
-
-            if (!eventName) {
-                alert("Please enter Event Name first!");
-                return;
-            }
-
-            // Visual feedback: disable button and change text
-            generateBtn.disabled = true;
-            generateBtn.style.opacity = '0.6';
-            generateBtn.textContent = '⏳ Gemini is writing...';
-            aiStatus.style.display = 'block';
-            tweakContainer.style.display = 'none';
-
-            try {
-                const response = await fetch('{{ route("ai.generate-description") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        event_name: eventName,
-                        category: category,
-                        location: location,
-                        attendees: attendees ? parseInt(attendees) : null,
-                        extra_details: extraDetails
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    await typeEffect(textArea, data.text);
-                    tweakContainer.style.display = 'flex';
-                } else {
-                    alert("Error: " + (data.error || "Could not generate description"));
-                }
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Something went wrong with the AI. Please try again.");
-            } finally {
-                generateBtn.disabled = false;
-                generateBtn.style.opacity = '1';
-                generateBtn.textContent = '✨ Generate with AI';
-                aiStatus.style.display = 'none';
-            }
-        });
-
-        // ============================================
-        // 3. TWEAK BUTTONS (Ubah Gaya Deskripsi)
-        // ============================================
-        tweakBtns.forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                
-                const style = btn.dataset.style;
-                const currentText = textArea.value;
-
-                if (!currentText.trim()) {
-                    alert("Please generate a description first!");
-                    return;
-                }
-
-                // Visual feedback
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                const originalText = btn.textContent;
-                btn.textContent = '⏳...';
-
-                try {
-                    const response = await fetch('{{ route("ai.tweak-description") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({
-                            text: currentText,
-                            style: style
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        await typeEffect(textArea, data.text);
-                    } else {
-                        alert("Error: " + (data.error || "Could not tweak description"));
-                    }
-                } catch (error) {
-                    console.error("Error:", error);
-                    alert("Something went wrong. Please try again.");
-                } finally {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.textContent = originalText;
-                }
-            });
-        });
-
-        // ============================================
-        // 4. ADD CSRF TOKEN TO HEAD IF NOT EXISTS
-        // ============================================
-        if (!document.querySelector('meta[name="csrf-token"]')) {
-            const meta = document.createElement('meta');
-            meta.name = 'csrf-token';
-            meta.content = '{{ csrf_token() }}';
-            document.head.appendChild(meta);
-        }
-
-        // ============================================
-        // 5. IMAGE PREVIEW HANDLERS
+        // IMAGE PREVIEW HANDLERS
         // ============================================
         document.getElementById('eventImageInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -502,32 +331,8 @@
                 reader.readAsDataURL(file);
             });
         });
-
-        // ============================================
-        // 6. ENHANCED FORM STYLING
-        // ============================================
-        textArea.addEventListener('focus', function() {
-            this.style.borderColor = '#9333ea';
-            this.style.boxShadow = '0 0 0 3px rgba(147, 51, 234, 0.1)';
-        });
-
-        textArea.addEventListener('blur', function() {
-            this.style.borderColor = '#d1d5db';
-            this.style.boxShadow = 'none';
-        });
-
-        // Hover effects for tweak buttons
-        tweakBtns.forEach(btn => {
-            btn.addEventListener('mouseover', function() {
-                this.style.background = '#f3f4f6';
-                this.style.borderColor = '#9333ea';
-            });
-            
-            btn.addEventListener('mouseout', function() {
-                this.style.background = 'white';
-                this.style.borderColor = '#ddd';
-            });
-        });
     </script>
+
+    @include('partials.ai-caption-generator-script')
 </body>
 </html>

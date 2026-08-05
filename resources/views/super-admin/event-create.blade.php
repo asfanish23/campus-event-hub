@@ -179,10 +179,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-6">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
-                                <textarea name="description" rows="5" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">{{ old('description') }}</textarea>
-                            </div>
+                            @include('partials.ai-caption-generator')
                         </div>
 
                         <!-- Multiple Photos Section -->
@@ -246,5 +243,7 @@
             });
         });
     </script>
+
+    @include('partials.ai-caption-generator-script')
 </body>
 </html>
