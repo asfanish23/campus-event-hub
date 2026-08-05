@@ -62,6 +62,14 @@ class Club extends Model
     }
 
     /**
+     * Relationship: Club has one Threads account
+     */
+    public function threadsAccount(): HasOne
+    {
+        return $this->hasOne(ThreadsAccount::class);
+    }
+
+    /**
      * Relationship: Club has many products
      */
     public function products()

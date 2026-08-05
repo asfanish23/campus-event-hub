@@ -90,7 +90,10 @@
                 </div>
 
                 <!-- Status Alert -->
-                @if(!$hasInstagramCredentials && !$hasFacebookCredentials)
+                @php
+                    $threadsConnected = $threadsAccount && $threadsAccount->isTokenValid();
+                @endphp
+                @if(!$hasInstagramCredentials && !$hasFacebookCredentials && !$hasThreadsCredentials && !$threadsConnected)
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
                         <div class="flex">
                             <div class="flex-shrink-0">
@@ -114,8 +117,10 @@
                                 <p class="text-sm text-green-800">
                                     Ready platforms:
                                     @if($hasInstagramCredentials) Instagram @endif
-                                    @if($hasInstagramCredentials && $hasFacebookCredentials) and @endif
+                                    @if($hasInstagramCredentials && ($hasFacebookCredentials || $hasThreadsCredentials || $threadsConnected)) and @endif
                                     @if($hasFacebookCredentials) Facebook @endif
+                                    @if(($hasInstagramCredentials || $hasFacebookCredentials) && ($hasThreadsCredentials || $threadsConnected)) and @endif
+                                    @if($hasThreadsCredentials || $threadsConnected) Threads @endif
                                 </p>
                             </div>
                         </div>
@@ -217,11 +222,15 @@
                                 @php
                                     $instagramPosted = $event->isPostedToInstagram();
                                     $facebookPosted = $event->isPostedToFacebook();
+                                    $threadsPosted = $event->isPostedToPlatform('threads');
                                     $instagramPostedAt = $event->postedAtForPlatform('instagram') ?? $event->instagram_posted_at;
                                     $facebookPostedAt = $event->postedAtForPlatform('facebook');
+                                    $threadsPostedAt = $event->postedAtForPlatform('threads');
                                     $latestInstagramPost = $event->latestSocialPost('instagram');
                                     $latestFacebookPost = $event->latestSocialPost('facebook');
+                                    $latestThreadsPost = $event->latestSocialPost('threads');
                                     $instagramPermalink = $latestInstagramPost?->permalink;
+                                    $threadsPermalink = $latestThreadsPost?->permalink;
                                     $hasPendingInstagramSchedule = $event->instagram_auto_post && $event->instagram_scheduled_at && !$event->instagram_scheduled_posted && !$instagramPosted;
                                     $hasCompletedInstagramSchedule = $event->instagram_scheduled_at && ($event->instagram_scheduled_posted || $instagramPosted);
                                     $facebookPostUrl = null;
@@ -301,9 +310,9 @@
                                                 <span class="font-semibold">Facebook:</span>
                                                 <span class="{{ $facebookPosted ? 'text-green-700' : 'text-gray-600' }}">{{ $facebookPosted ? 'Posted' : 'Not Posted' }}</span>
                                             </div>
-                                            <div class="col-span-2 bg-gray-50 border border-gray-200 rounded px-2 py-2">
+                                            <div class="bg-gray-50 border border-gray-200 rounded px-2 py-2">
                                                 <span class="font-semibold">Threads:</span>
-                                                <span class="text-gray-600">Coming Soon</span>
+                                                <span class="{{ $threadsPosted ? 'text-green-700' : 'text-gray-600' }}">{{ $threadsPosted ? 'Posted' : 'Not Posted' }}</span>
                                             </div>
                                         </div>
 
@@ -456,17 +465,42 @@
                                                 <section class="border border-gray-300 rounded-lg p-4 bg-gray-50">
                                                     <div class="flex items-center justify-between mb-3">
                                                         <h4 class="text-lg font-semibold text-gray-900">Threads</h4>
-                                                        <span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-gray-800">Coming Soon</span>
+                                                        <span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-gray-800">Threads</span>
                                                     </div>
 
-                                                    <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> Coming Soon</p>
-                                                    <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> N/A</p>
+                                                    @if($threadsConnected)
+                                                        <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> {{ $threadsPosted ? 'Posted' : 'Not Posted' }}</p>
+                                                        <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> {{ $threadsPostedAt ? $threadsPostedAt->format('M d, Y H:i') : 'N/A' }}</p>
+                                                        <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Connected as:</span> {{ $threadsAccount->threads_username }}</p>
 
-                                                    <div class="mt-4">
-                                                        <button type="button" disabled class="w-full bg-gray-300 text-gray-600 text-sm font-semibold py-2 px-3 rounded-lg cursor-not-allowed">
-                                                            Integration Pending
-                                                        </button>
-                                                    </div>
+                                                        <div class="mt-4 space-y-2">
+                                                            <form action="{{ route('social-media.post.threads', $event->id) }}" method="POST">
+                                                                @csrf
+                                                                <button type="submit" class="w-full bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                    {{ $threadsPosted ? 'Repost' : 'Post Now' }}
+                                                                </button>
+                                                            </form>
+
+                                                            @if($threadsPermalink)
+                                                                <a href="{{ $threadsPermalink }}" target="_blank" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                    View Post
+                                                                </a>
+                                                            @else
+                                                                <button type="button" disabled class="block w-full text-center bg-gray-300 text-gray-600 text-sm font-semibold py-2 px-3 rounded-lg cursor-not-allowed" title="Post URL not available">
+                                                                    Post URL not available
+                                                                </button>
+                                                            @endif
+                                                        </div>
+                                                    @else
+                                                        <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> Not Connected</p>
+                                                        <p class="text-xs text-gray-600 mt-1">Connect your Threads account to publish event posts to your club's Threads feed.</p>
+
+                                                        <div class="mt-4">
+                                                            <a href="{{ route('threads.oauth.redirect', $threadsClubId) }}" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                🔗 Connect Threads
+                                                            </a>
+                                                        </div>
+                                                    @endif
                                                 </section>
                                             </div>
 

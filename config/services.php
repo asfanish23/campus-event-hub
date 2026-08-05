@@ -45,6 +45,14 @@ return [
         'page_access_token' => env('FACEBOOK_PAGE_ACCESS_TOKEN'),
     ],
 
+    // Threads Graph API configuration
+    'threads' => [
+        'token' => env('THREADS_ACCESS_TOKEN'),
+        'user_id' => env('THREADS_USER_ID'),
+        'app_id' => env('THREADS_APP_ID'),
+        'app_secret' => env('THREADS_APP_SECRET'),
+    ],
+
     // ImgBB Image Hosting API configuration
     'imgbb' => [
         'key' => env('IMGBB_API_KEY'),

@@ -1,504 +1,200 @@
-# 403 INVALID SIGNATURE — Runtime Investigation Report
+# Threads API Integration — Feasibility Analysis
 
-**Date:** 2026-08-04
-**App:** Laravel 10.50.2 (`vendor`/`composer.lock`)
-**Environment investigated:** `C:\laragon\www\CampusEventHub` (branch `main`, HEAD `b6d276e`, up to date with `origin/main`)
-**Repositories referenced:** `https://github.com/asfanish23/campus-event-hub.git`
-**Production server observed:** `https://aseems.ddns.net` (Nginx/1.24.0 Ubuntu, PHP-FPM 8.3, project dir `/var/www/campus-event-hub` per `dep.sh`)
+> Analysis of the existing Meta OAuth / Instagram integration to determine reuse for the Threads API. No code was written.
 
 ---
 
-## 1. Executive Summary
+## 1. Current State Inventory
 
-The source code in this repository **cannot** produce a `403 INVALID SIGNATURE` for
-`GET /payment/return`. This was proven conclusively by:
+### 1.1 InstagramOAuthController
+`app/Http/Controllers/Web/InstagramOAuthController.php`
 
-- `php artisan route:list --path=payment -v` — the route `payment.return` resolves to
-  `Web\PaymentController@return` with middleware `web` + `App\Http\Middleware\Authenticate` only.
-  There is **no** `signed` middleware on the route.
-- An exhaustive search of `app/`, `routes/`, `config/`, `bootstrap/` found **zero** occurrences of
-  `signedRoute()`, `hasValidSignature()`, `middleware('signed')`, or `abort(403)` in the payment flow.
-- There is **no route cache** (`bootstrap/cache/routes-v7.php` does not exist).
-- The exception that renders "403 INVALID SIGNATURE" can only be thrown by
-  `Illuminate\Routing\Middleware\ValidateSignature`, which is only ever executed when a route is
-  registered with the `signed` middleware alias.
+| Method | What it does |
+|---|---|
+| `redirectToInstagram($clubId)` | Validates club ownership (or assigns current user as admin), generates a random `state`, stores `instagram_oauth_state` + `instagram_club_id` in the session, then redirects to `https://www.instagram.com/oauth/authorize` with scopes `instagram_business_basic,instagram_business_content_publish`. |
+| `handleCallback(Request)` | Verifies `state`, exchanges `code` → short-lived token via `POST https://graph.instagram.com/v18.0/oauth/access_token`, then swaps it for a **long-lived (60-day)** token via `GET https://graph.instagram.com/v18.0/access_token?grant_type=ig_refresh_token`, fetches account profile (`GET /v18.0/{$userId}?fields=id,username`), and persists to `InstagramAccount` via `firstOrNew(['club_id'])`, setting `connection_method='oauth'`. |
+| `fetchAccountFromToken(Request)` | AJAX helper: validates a pasted token against `GET https://graph.instagram.com/v18.0/me`. |
 
-Because the current source cannot throw it, the 403 must originate from a **stale runtime state on
-the server that actually serves the request** — either:
+**Token refresh logic:** The only refresh is the one-time `ig_refresh_token` long-lived swap during callback. There is **no scheduled/periodic refresh**, `token_expires_at` is never set during the OAuth flow, and the `refresh_token` column added by migration `2026_01_18_090000` is **not** written by this controller (and is not in `InstagramAccount::$fillable`).
 
-1. a **stale route cache** (`bootstrap/cache/routes-v7.php`) built on the server **before**
-   commit `b6d276e` (2026-07-30) still registering `payment.return` with `->middleware('signed')`,
-   and never cleared because the deployment scripts do **not** run `php artisan route:clear`; or
-2. the deployed code on the server predates the fix (server never redeployed).
+### 1.2 Routes (`routes/web.php`)
 
-The local machine shows no evidence of serving the payment flow (no web requests logged since
-2026-06-25, Apache not listening, ngrok tunnel offline), so the 403 is being produced by the
-deployed server (`aseems.ddns.net`), where the runtime route table still contains the old
-`signed` middleware.
+- Instagram OAuth: `/instagram/oauth/redirect/{clubId}`, `/instagram/oauth/callback`, `/instagram/oauth/fetch-account` (lines 121–123).
+- Social-media dashboard: `/social-media`, `/social-media/events/{event}/instagram`, `/social-media/events/{event}/facebook`, `/social-media/events/{event}/publish-all` (lines 99–102).
+- Legacy Instagram routes: `/instagram` + post/schedule/repost/test (lines 105–113).
+- **There are no Facebook OAuth routes and no generic "Meta" auth routes.** Facebook is configured statically via global config only.
 
-**Primary root cause:** stale runtime route definitions on the deployed server
-(`bootstrap/cache/routes-v7.php` generated from pre-fix `routes/web.php:74` = `->middleware('signed')`),
-perpetuated because `deploy.sh`/`dep.sh` never run `php artisan route:clear`.
+### 1.3 Services (`app/Services/`)
 
----
+| Service | Role | Platform-specific? |
+|---|---|---|
+| `InstagramService` | Two-step post (container → publish) and insights against `graph.instagram.com/v18.0`. Credentials read from `config('services.instagram.*')` in constructor; also `postImageWithCustomCredentials()` for per-club accounts. | Yes (Instagram) |
+| `ClubInstagramService` | Posts an event image (ImgBB upload) to the **club's** stored Instagram account (decrypts `InstagramAccount.access_token`). | Yes (Instagram) |
+| `ScheduledInstagramPostService` | Scheduler entrypoint (`instagram:process-scheduled-posts`, every 5 min) + reposts. | Yes (Instagram) |
+| `InstagramSyncService` | Pulls metrics (`getMediaInsights`) into `events.instagram_*` columns; milestone notifications. | Yes (Instagram) |
+| `InstagramNotificationService` | Milestone/sync notifications. | Yes (Instagram) |
+| `ImgBBService` | Uploads local image → public URL (used by every platform path). | **No (reusable)** |
+| `ClubActivityService` / `ClubNotificationService` | Generic club activity/notification logging. | **No (reusable)** |
 
-## 2. Commands Executed
+- **No `FacebookService`, no `SocialMediaService`, no shared Graph client.** Facebook posting is **inlined in `InstagramController`** (`postImageToFacebook()` → `Http::asForm()->post("https://graph.facebook.com/v22.0/{$pageId}/photos")`).
 
-| # | Command |
-|---|---------|
-| 1 | `php artisan --version` |
-| 2 | `php artisan route:list --path=payment` |
-| 3 | `php artisan route:list --path=payment -v` |
-| 4 | `Get-ChildItem bootstrap/cache` (route cache check) |
-| 5 | Grep of `app/`, `routes/`, `config/`, `bootstrap/` for signature-related tokens |
-| 6 | Read `app/Http/Kernel.php`, `app/Http/Middleware/*`, `app/Exceptions/Handler.php`, `routes/web.php`, `app/Http/Controllers/Web/PaymentController.php` |
-| 7 | Read framework `ValidateSignature.php`, `InvalidSignatureException.php`, `403.blade.php`, `minimal.blade.php`, `Foundation/Exceptions/Handler.php` |
-| 8 | `git status`, `git log`, `git show b6d276e`, `git remote -v` |
-| 9 | `Get-NetTCPConnection` (port 80/443/8080/8000 listen check) |
-| 10 | `hosts` file check; ngrok config lookup |
-| 11 | `curl` probes to `https://aseems.ddns.net` and the ngrok URL |
-| 12 | `storage/logs/laravel.log` inspection (DebugSessionMiddleware request trail) |
-| 13 | Read `deploy.sh`, `dep.sh`, `nginx-phpmyadmin.conf`, `.env`, `config/services.php` |
-| 14 | Grep of `*.md` for `route:cache`/`config:cache` deployment instructions |
-| 15 | OPcache status via `php -r` |
+### 1.4 Models / Database
+
+- `InstagramAccount` — one row per club (`unique(['club_id'])`), `access_token` stored **encrypted** via mutator (`encrypt()`/`decrypt()` via `setAccessTokenAttribute()` / `getDecryptedToken()`), plus `is_active`, `token_expires_at`, `last_post_at`, and `refresh_token`, `oauth_state`, `connection_method` columns (the last three added but partially unused). Schema is **Instagram-named and not platform-generic**.
+- `SocialPost` — **already platform-agnostic.** Migration `2026_06_24_000000` uses `enum('platform', ['instagram','facebook','threads'])` and the model already defines `PLATFORM_THREADS = 'threads'`. No migration needed to record Threads posts.
+- `Event` — heavy `instagram_*` column set (media_id, posted_at, metrics, scheduling/repost flags). **No Threads columns.** Useful platform-agnostic helpers already exist: `socialPosts()`, `latestSocialPost($platform)`, `isPostedToPlatform($platform)`, `postedAtForPlatform($platform)`.
+- `Club` — already has a `threads_url` social link field (display only).
+
+### 1.5 Configuration
+
+- `config/services.php` has `instagram` (`token`, `user_id`, `app_id`, `app_secret`) and `facebook` (`page_id`, `page_access_token`) blocks. **No `threads` block.**
+- `.env`/`.env.example` keys: `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_BUSINESS_ACCOUNT_ID`. **No Threads keys.**
+- Redirect URIs are built from `config('app.url') . '/instagram/oauth/callback'` and must be registered in the Meta app.
 
 ---
 
-## 3. Command Outputs
+## 2. Threads API vs Instagram API — What Actually Differs
 
-### 3.1 `php artisan --version`
+The OAuth **shape** is identical; the **endpoints, scopes, host, and grant type differ**. This is the crux of the reuse decision.
 
-```
-Laravel Framework 10.50.2
-```
-
-### 3.2 `php artisan route:list --path=payment`
-
-```
-  POST       payment/callback ...................................... payment.callback › Web\PaymentController@callback
-  POST       payment/checkout-multiple ............ payment.checkout.multiple › Web\PaymentController@checkoutMultiple
-  POST       payment/pay .............................................. payment.pay › Web\PaymentController@createBill
-  GET|HEAD   payment/return ............................................ payment.return › Web\PaymentController@return
-  GET|HEAD   payment/test/failed/{payment_id} ....... payment.test.failure › Web\PaymentTestController@simulateFailure
-  GET|HEAD   payment/test/success/{payment_id} ...... payment.test.success › Web\PaymentTestController@simulateSuccess
-  GET|HEAD   student/profile/payments ............... student.profile.payments › Web\StudentProfileController@payments
-```
-
-### 3.3 `php artisan route:list --path=payment -v`
-
-```
-  GET|HEAD   payment/return ............................................ payment.return › Web\PaymentController@return
-             ⇂ web
-             ⇂ App\Http\Middleware\Authenticate
-```
-
-### 3.4 `bootstrap/cache` listing
-
-```
-.gitignore    (14 bytes)
-packages.php  (1829 bytes)   ← package manifest (php artisan package:discover), NOT route cache
-services.php  (21184 bytes)  ← package manifest, NOT route cache
-```
-
-**There is no `routes-v7.php` and no `config.php`.** Laravel's route cache file
-(`bootstrap/cache/routes-v7.php`) does **not** exist on this machine.
-
-### 3.5 Runtime probe — production server `https://aseems.ddns.net`
-
-```
-GET /payment/return?payment_id=1                → HTTP 302  Location: https://aseems.ddns.net/login
-GET /payment/return?payment_id=1&signature=bogus&expires=9999999999 → HTTP 302 → /login
-GET /login                                      → HTTP 200 (laravel_session + XSRF-TOKEN set)
-Response headers: Server: nginx/1.24.0 (Ubuntu)
-```
-
-Interpretation: `auth` middleware runs on the server and redirects guests to `/login` (302).
-The `302` result is consistent with **both** the current route (`auth` only) **and** the pre-fix
-cached route (`auth` runs before `signed` — see §6.2), so an unauthenticated probe cannot
-distinguish them. The `403` only manifests for an **authenticated** user, which is exactly the
-state the user is in when ToyyibPay redirects them back.
-
-### 3.6 Runtime probe — ngrok URL (from `.env` `APP_URL`)
-
-```
-GET https://petrogenetic-dyslogistically-dewayne.ngrok-free.dev/payment/return?payment_id=1 → HTTP 404
-```
-
-The ngrok tunnel is offline/unassigned at investigation time, and **no ngrok config file exists**
-on this machine. The tunnel therefore is not (or is no longer) serving this local install.
-
-### 3.7 Local machine runtime state
-
-- Ports `80`, `443`, `8080`, `8000`: **no listeners** → local Apache/PHP server is **not running**.
-- `hosts`: `127.0.0.1 CampusEventHub.test` (standard Laragon vhost entry exists).
-- OPcache: `php -r` → `'OPcache extension not loaded'` (CLI SAPI; no impact on route resolution).
-- `storage/logs/laravel.log`: last `DebugSessionMiddleware` web request entry = **2026-06-25 07:14**
-  (log file last modified 2026-06-29 23:00). **No web request to this install since before the
-  2026-07-30 fix commit.** No `InvalidSignatureException` / `signature` entries anywhere in the log.
-
-### 3.8 Deployment scripts
-
-`deploy.sh` (production steps, abridged):
-
-```
-git pull origin main
-php artisan cache:clear          # NOT route:clear
-php artisan config:clear
-php artisan view:clear
-php artisan migrate --force
-sudo systemctl restart nginx     # php-fpm NOT restarted
-```
-
-`dep.sh` (same pattern):
-
-```
-git pull origin main
-php artisan cache:clear
-php artisan config:clear
-php artisan view:clear
-php artisan migrate --force
-sudo systemctl restart nginx
-```
-
-**Neither script runs `php artisan route:clear`.** `cache:clear` does **not** remove
-`bootstrap/cache/routes-v7.php`; only `route:clear` does. A route cache created before the fix
-survives every deployment run.
-
-### 3.9 Deployment documentation (repo evidence that `route:cache` is used on the server)
-
-- `README_IMPLEMENTATION.md:377` — “Routes Not Found → Run `php artisan route:cache` then `php artisan route:clear`”
-- `PAYMENT_SYSTEM_SETUP.md:141` — `php artisan config:cache`
-- `PAYMENT_SYSTEM_SETUP.md:295` — “Solution: Run `php artisan config:cache` again”
-- `GEMINI_AI_TROUBLESHOOTING.md:52-53` — `php artisan route:cache` / `php artisan route:clear`
-- `SYSTEM_OVERVIEW.md:427` — `php artisan config:cache`
-- `INSTAGRAM_INTEGRATION_DEPLOYMENT_GUIDE.md:39` — `php artisan config:cache`
-
-The project's own operational documentation tells operators to run `php artisan route:cache`
-and `php artisan config:cache` on the server, and the deploy scripts never clear the route cache —
-a recipe for stale cached routes.
-
-### 3.10 Git state
-
-```
-On branch main
-Your branch is up to date with 'origin/main'.
-Changes not staged for commit:
-  deleted:    output.md
-HEAD commit: b6d276e 2026-07-30 16:41:10 +0800 fix(payment): resolve ToyyibPay return URL signature validation issue
-origin: https://github.com/asfanish23/campus-event-hub.git
-```
-
-`git show b6d276e -- routes/web.php`:
-
-```diff
--    Route::get('/payment/return', [PaymentController::class, 'return'])->name('payment.return')->middleware('signed');
-+    Route::get('/payment/return', [PaymentController::class, 'return'])->name('payment.return')->middleware('auth');
-```
-
-The fix is committed and pushed. `routes/web.php` has no uncommitted changes.
+| Concern | Instagram (current) | Threads (new) |
+|---|---|---|
+| OAuth authorize host | `https://www.instagram.com/oauth/authorize` | `https://www.threads.net/oauth/authorize` |
+| Token exchange | `POST https://graph.instagram.com/v18.0/oauth/access_token` | `GET https://graph.threads.net/access_token` (`client_id`, `client_secret`, `grant_type=authorization_code`, `redirect_uri`, `code`) |
+| Long-lived swap | `grant_type=ig_refresh_token` (~60 days) | `grant_type=th_refresh_token` (~60 days) |
+| API host | `graph.instagram.com/v18.0` | `graph.threads.net/v1.0` |
+| Scopes | `instagram_business_basic`, `instagram_business_content_publish` | `threads_basic`, `threads_content_publish`, (+ optional `threads_read_replies`, `threads_manage_insights`, `threads_manage_replies`) |
+| Publish flow | 2-step: `{ig_user}/media` → `{ig_user}/media_publish` | 2-step: `POST /v1.0/{threads_user_id}/threads` (container, `media_type=IMAGE&image_url=...&text=...`) → `POST /v1.0/{threads_user_id}/threads_publish` |
+| Account lookup | `GET /{user_id}?fields=id,username` | `GET /v1.0/me?fields=id,username` |
+| Meta app | Instagram product enabled | **Threads product must be enabled on the same Meta app** + OAuth redirect URI registered + app review for production |
 
 ---
 
-## 4. Search Results
+## 3. Answers to Your Questions
 
-### 4.1 `middleware('signed')`
-- **0 occurrences** in `routes/`, `app/`, `config/`.
-- The only `signed`-related registration is the alias definition:
-  `app/Http/Kernel.php:63` → `'signed' => \App\Http\Middleware\ValidateSignature::class` (alias map entry; no route uses it).
+### Can the existing OAuth flow be reused for Threads?
+**Yes — as a parameterized pattern, not as copy-paste code.**
+The controller's logic (state generation/verification, club ownership check, `code`→token exchange, long-lived refresh, account-profile fetch, encrypted persistence into a per-club account row) maps 1:1 to what Threads needs. However, every HTTP call is hard-coded to Instagram hosts/scopes/grant types, so the flow must be extracted into a platform-parameterized service before it can serve both. Storage also needs a Threads-specific account row (see §4).
 
-### 4.2 `"signed"` (literal)
-- `app/Http/Kernel.php:63` (alias registration, see above).
-- `app/Http/Middleware/ValidateSignature.php` (class extends framework `ValidateSignature`).
+### Which classes should be reused (used as-is)?
+- `SocialPost` — already has `PLATFORM_THREADS` and the `threads` enum value; zero migration.
+- `Event::socialPosts() / latestSocialPost() / isPostedToPlatform() / postedAtForPlatform()` — platform-agnostic, ready for Threads.
+- `ImgBBService` — the image→public-URL step is identical for Threads.
+- `ClubActivityService`, `ClubNotificationService` — platform-agnostic infrastructure.
+- The **two-step container→publish pattern** and the **error/logging conventions** from `InstagramService`.
 
-### 4.3 `signedRoute(` / `URL::signedRoute(` / `temporarySignedRoute(`
-- **0 occurrences** anywhere in `app/`, `routes/`, `config/`.
-- `routes/web.php`, `PaymentController.php`, `CartController.php`, `PaymentTestController.php`
-  all use `route('payment.return', ['payment_id' => ...])` (verified in source, lines
-  `PaymentController.php:101`, `:208`; route group `routes/web.php:42`).
+### Which classes should be extended?
+- `config/services.php` + `.env` → add a `threads` block (`app_id`, `app_secret`, optional global `token`/`user_id`), mirroring `instagram`.
+- `InstagramController` (the social-media dashboard controller) → add `postToThreads()` (+ silent variant) and extend `publishAllPlatforms()` so Threads joins the existing platform loop. Route registration required.
+- `Club` model → `threadsAccount()` relation (mirrors `instagramAccount()`).
+- The social-media dashboard blade (`instagram/index.blade.php`) → Threads connect/status/publish UI, reusing the Instagram section's structure.
+- **Recommended (long-term):** a shared `ThreadsService` built on a common base so it mirrors `InstagramService` instead of duplicating it (see §4).
 
-### 4.4 `hasValidSignature(` / `URL::hasValidSignature(`
-- **0 occurrences** in `app/`, `routes/`, `config/`.
+### Which classes should remain unchanged?
+- `InstagramService`, `ClubInstagramService`, `InstagramSyncService`, `InstagramNotificationService`, `ScheduledInstagramPostService`, and the existing console commands — all stay as-is (Instagram-only behavior is fine).
+- `Event` — avoid adding 8–10 new `threads_*` columns; track Threads status via `SocialPost` rows. (Add columns only later if you want native Threads scheduling/metrics parity.)
+- Existing Instagram OAuth routes and the legacy `/instagram` routes — untouched for backward compatibility.
 
-### 4.5 `ValidateSignature`
-- `app/Http/Kernel.php:63` — alias registration only.
-- `app/Http/Middleware/ValidateSignature.php` — extends framework middleware; its `$except` array
-  contains ToyyibPay params (`status_id`, `billcode`, `order_id`) as belt-and-suspenders.
+### Dedicated `ThreadsOAuthController` vs integrate into `InstagramOAuthController`?
+**Create a dedicated `ThreadsOAuthController`** (thin), backed by a shared service — do **not** branch the existing Instagram controller with `if ($platform === ...)` blocks. Rationale:
+- `InstagramOAuthController` is 100% Instagram-hard-coded (scopes, hosts, route names, session keys, flash messages).
+- Piling Threads into it creates a bloated god-controller and makes the Instagram callback path riskier to regress.
+- Two thin platform controllers over one shared `MetaOAuthService` keeps both flows readable, testable, and independently maintainable — which is the idiomatic Laravel layering (controllers stay thin, logic lives in services).
 
-### 4.6 `InvalidSignatureException`
-- **0 occurrences** in application code. Only in `vendor/`:
-  - `vendor/laravel/framework/src/Illuminate/Routing/Exceptions/InvalidSignatureException.php`
-  - `vendor/laravel/framework/src/Illuminate/Routing/Middleware/ValidateSignature.php`
+### Is there duplicated logic that should be refactored into a shared `MetaOAuthService`?
+**Yes — several clear duplication candidates:**
 
-### 4.7 `abort(403)`
-- `app/Http/Controllers/Web/InstagramController.php:432` — **unrelated** to payments.
-- `app/Http/Controllers/Web/PaymentController.php` — the only 403 in the payment flow is the
-  `callback()` response `'Invalid hash'` on `PaymentController.php:290`, which returns a plain
-  string body (`Invalid hash`), **not** the `403 INVALID SIGNATURE` error page. The user's
-  `403 INVALID SIGNATURE` is the rendered error page, which this cannot produce.
-
-### 4.8 `Invalid signature` / `INVALID SIGNATURE`
-- **0 occurrences** in application code, including `resources/views` (no `resources/views/errors/` directory exists).
-- The text is produced only by the framework view:
-  - `vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/403.blade.php:5`
-    → `@section('message', __($exception->getMessage() ?: 'Forbidden'))`
-  - `vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/minimal.blade.php:27-29`
-    → message rendered with CSS class `uppercase tracking-wider`, so **"Invalid signature." is
-    displayed as "INVALID SIGNATURE"**.
+1. **OAuth ceremony** — club-ownership guard, `state` generation + session storage + verification, `code`→token exchange, long-lived-token refresh, account-profile fetch, credential persistence. All of this is currently duplicated only once (Instagram), but Threads would make it twice — the classic threshold for extraction.
+2. **Two-step media publish** — `InstagramService::createMediaContainer()/publishMedia()` will be near-identical to Threads' container/publish calls (only host, endpoint path, and field names differ). Extract a shared base `MetaGraphService` (HTTP helpers, error parsing, two-step publish skeleton) with `InstagramService` and `ThreadsService` extending it.
+3. **Facebook post is already inlined in `InstagramController`** — it would benefit from being extracted into a `FacebookService` at the same time (optional but recommended, otherwise the controller keeps growing).
 
 ---
 
-## 5. Route Analysis
+## 4. Recommended Clean Architecture (Laravel Best Practices)
 
-### 5.1 Route definition (source of truth)
-
-`routes/web.php:74`:
-
-```php
-Route::get('/payment/return', [PaymentController::class, 'return'])->name('payment.return')->middleware('auth');
+```
+app/
+├─ Services/
+│  ├─ Meta/
+│  │  ├─ MetaOAuthService.php          # NEW — generic OAuth ceremony, platform-parameterized
+│  │  ├─ MetaPlatformConfig.php        # NEW — per-platform: host, authorize_url, scopes,
+│  │  │                                #        grant types, route names, redirect path, storage
+│  │  └─ MetaGraphService.php          # NEW (optional but recommended) — HTTP client,
+│  │                                   #        error parsing, 2-step publish skeleton
+│  ├─ InstagramService.php             # EXTEND — extend MetaGraphService
+│  ├─ ThreadsService.php               # NEW — extends MetaGraphService (container/publish/insights)
+│  ├─ FacebookService.php              # NEW (optional) — absorb postImageToFacebook()
+│  └─ ... (Instagram-only services unchanged)
+├─ Http/Controllers/Web/
+│  ├─ InstagramOAuthController.php     # REFACTOR → delegate to MetaOAuthService (backward-compatible)
+│  ├─ ThreadsOAuthController.php       # NEW — thin wrapper over MetaOAuthService
+│  ├─ InstagramController.php          # EXTEND → postToThreads() + publishAllPlatforms()
+│  └─ ...
+├─ Models/
+│  ├─ ThreadsAccount.php               # NEW — mirrors InstagramAccount (encrypted token)
+│  └─ Club.php                         # EXTEND → threadsAccount() relation
+└─ database/migrations/
+   └─ create_threads_accounts_table.php  # NEW — mirrors instagram_accounts (unique club_id)
 ```
 
-Inside the `Route::middleware('auth')->group(...)` block (`routes/web.php:42`).
+**Key design decisions:**
 
-| Property      | Value |
-|---------------|-------|
-| URI           | `payment/return` |
-| Name          | `payment.return` |
-| Controller    | `App\Http\Controllers\Web\PaymentController@return` (`app/Http/Controllers/Web/PaymentController.php:340`) |
-| Methods       | `GET`, `HEAD` |
-| Middleware    | `web` group + `App\Http\Middleware\Authenticate` |
-| Signed URL?   | **No** — no `signed` middleware, no `URL::signedRoute()` anywhere |
-
-### 5.2 Pre-fix state (cached-route candidate)
-
-`git show b6d276e -- routes/web.php` proves the route **previously** was:
-
-```php
-Route::get('/payment/return', ...)->name('payment.return')->middleware('signed');
-```
-
-A route cache generated while that line was in effect persists the `signed` middleware in
-`bootstrap/cache/routes-v7.php`.
-
-### 5.3 Return URL generation (current code)
-
-`app/Http/Controllers/Web/PaymentController.php:101` and `:208`:
-
-```php
-returnUrl: route('payment.return', ['payment_id' => $payment->id]),
-```
-
-No `signature`/`expires` parameters are generated. When ToyyibPay redirects the user it appends
-`status_id`, `billcode`, `order_id` to this URL. With the current (fixed) route there is nothing
-to validate, so the request reaches the controller. With the **pre-fix cached route** the
-`ValidateSignature` middleware runs and fails because the URL contains no valid signature.
+1. **`MetaOAuthService`** takes a platform descriptor (config array) and exposes:
+   `buildAuthorizeUrl(club, platform)`, `handleCallback(request, platform)`, `verifyState()`, `exchangeCode()`, `exchangeForLongLivedToken()`, `fetchAccount()`, `persistAccount()`. Each platform controller supplies only its own route names, session keys, redirect path, and scopes.
+2. **Storage:** create a `threads_accounts` table mirroring `instagram_accounts` (encrypted `access_token`, `threads_username`, `threads_user_id`, `is_active`, `token_expires_at`, `connection_method`), unique per `club_id`. 
+   - *Pragmatic choice* — zero risk to the working Instagram flow.
+   - *Longer-term alternative* — a single polymorphic/generic `social_accounts` table with a `platform` discriminator. Cleaner conceptually, but requires touching `ClubInstagramService`, `InstagramSyncService`, and the Instagram relation; defer it unless you plan a third platform soon.
+3. **Posting:** `ThreadsService::postImage($imageUrl, $caption)` implements the two-step `threads` container → `threads_publish` calls on `graph.threads.net/v1.0`, reusing the shared `MetaGraphService` skeleton. Add `postImageWithCustomCredentials()` mirroring Instagram for per-club accounts.
+4. **Status tracking:** record Threads results as `SocialPost` rows with `PLATFORM_THREADS` — no migration and automatic reuse of `latestSocialPost()/isPostedToPlatform()`.
+5. **Do NOT add `threads_*` columns to `events` initially.** Add a `threads_scheduled_at`-style set only if/when Threads scheduling is required (mirroring the `instagram_*` scheduling migration pattern).
 
 ---
 
-## 6. Middleware Analysis
+## 5. Step-by-Step Implementation Plan (no code)
 
-### 6.1 Full middleware stack for `GET /payment/return` (current source, execution order)
+### Phase A — Meta Developer setup (external, prerequisite)
+1. On the existing Meta app, enable the **Threads** product (or create a new app with it).
+2. Register the Threads OAuth redirect URI, e.g. `https://<app-url>/threads/oauth/callback`, under the Threads product's "Redirect URIs".
+3. Request scopes: `threads_basic`, `threads_content_publish` (add `threads_read_replies`, `threads_manage_insights` if metrics are wanted).
+4. Note that public publishing requires **app review** in production (same as Instagram). Test mode works for admins/testers.
 
-Global stack (`app/Http/Kernel.php:15-22`):
-1. `App\Http\Middleware\TrustProxies`
-2. `Illuminate\Http\Middleware\HandleCors`
-3. `App\Http\Middleware\PreventRequestsDuringMaintenance`
-4. `Illuminate\Foundation\Http\Middleware\ValidatePostSize`
-5. `App\Http\Middleware\TrimStrings`
-6. `Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull`
+### Phase B — Configuration
+5. Add a `threads` block to `config/services.php` (`app_id`, `app_secret`, optional global `token`/`user_id`).
+6. Add `.env` keys (`THREADS_APP_ID`, `THREADS_APP_SECRET`, …) and update `.env.example` + any config docs.
 
-`web` group (`app/Http/Kernel.php:30-40`):
-7. `App\Http\Middleware\EncryptCookies`
-8. `Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse`
-9. `Illuminate\Session\Middleware\StartSession`
-10. `Illuminate\View\Middleware\ShareErrorsFromSession`
-11. `App\Http\Middleware\VerifyCsrfToken`
-12. `Illuminate\Routing\Middleware\SubstituteBindings`
-13. `App\Http\Middleware\DebugSessionMiddleware`
-14. `App\Http\Middleware\ValidateSessionMiddleware`
-15. `App\Http\Middleware\NoCacheMiddleware`
+### Phase C — Data layer
+7. Write migration `create_threads_accounts_table` (mirror `instagram_accounts`, unique `club_id`).
+8. Create `ThreadsAccount` model with encrypted-token mutator/accessor (`getDecryptedToken()`, `setAccessTokenAttribute()`, `isTokenValid()`), matching `InstagramAccount`.
+9. Add `Club::threadsAccount()` HasOne relation.
 
-Route middleware (`routes/web.php:74`):
-16. `App\Http\Middleware\Authenticate`
+### Phase D — OAuth service + controllers
+10. Create `MetaOAuthService` by extracting the generic ceremony from `InstagramOAuthController` (state, exchange, long-lived refresh, profile fetch, persistence), parameterized by platform.
+11. Create `ThreadsOAuthController` (redirect/callback/fetch-account) delegating to `MetaOAuthService` with Threads config; add routes `/threads/oauth/redirect/{clubId}`, `/threads/oauth/callback`, `/threads/oauth/fetch-account`.
+12. Refactor `InstagramOAuthController` to delegate to the same service (verify the existing flow still passes; keep old routes/behavior intact).
 
-None of the above can throw `InvalidSignatureException`. `Authenticate` redirects guests to
-`route('login')` (`app/Http/Middleware/Authenticate.php:12`).
+### Phase E — Publishing
+13. Create `MetaGraphService` (optional step) and `ThreadsService::postImage()` (two-step container → publish on `graph.threads.net/v1.0`).
+14. Extend `InstagramController` with `postToThreads()` + silent variant; wire Threads into `publishAllPlatforms()`; register `/social-media/events/{event}/threads` route.
+15. Record results via `recordSocialPost(..., PLATFORM_THREADS, ...)` — reuse the existing private helper.
 
-### 6.2 Which middleware throws the exception in the user's scenario
+### Phase F — UI
+16. Add Threads connect/status/publish section to `resources/views/instagram/index.blade.php` (reuse the Instagram card/modal structure).
+17. Add the "Connect with Threads" OAuth button to `resources/views/club-profile/edit.blade.php` alongside Instagram.
 
-In the stale-runtime scenario the pre-fix cached route adds a 17th middleware:
-`App\Http\Middleware\ValidateSignature` (alias `signed`). Ordering: `Authenticate` is added by the
-`auth` group and `signed` was appended per-route; neither class appears in
-`$middlewarePriority` (`vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php:39-50`,
-which contains only HandlePrecognitiveRequests, EncryptCookies, AddQueuedCookiesToResponse,
-StartSession, ShareErrorsFromSession, AuthenticatesRequests, ThrottleRequests,
-ThrottleRequestsWithRedis, AuthenticatesSessions, SubstituteBindings, Authorize). With no priority
-entries, the framework's stable sort preserves registration order, so **`Authenticate` runs first,
-then `ValidateSignature`**.
-
-- **Authenticated user** → passes `Authenticate`, reaches `ValidateSignature` → URL has no valid
-  `signature`/`expires` → `hasValidSignatureWhileIgnoring()` returns `false` →
-  **`throw new InvalidSignatureException`** → HTTP 403 → **"403 INVALID SIGNATURE"** page.
-- **Guest** → `Authenticate` redirects to `/login` (302) before the signature check — which is why
-  the unauthenticated probe of `aseems.ddns.net` returned 302 and did **not** expose the 403.
-
-This exactly matches the reported flow: the user is logged in when ToyyibPay redirects them back,
-so `auth` passes and the stale `signed` middleware fires.
+### Phase G — Operations & verification
+18. Manual test: OAuth connect → verify `threads_accounts` row (encrypted) → post an event to Threads → confirm `social_posts` row with `platform='threads'`.
+19. (Optional, only if parity is wanted) Threads scheduling command + `Kernel` schedule entry, mirroring the Instagram scheduler.
+20. (Optional, only if parity is wanted) `ThreadsSyncService` for insights, reusing the milestone/notification services.
+21. Regression test the existing Instagram + Facebook flows (`publish-all` must still work).
+22. Document the new env keys and Meta redirect URI in the project's integration docs.
 
 ---
 
-## 7. Exception Trace
+## 6. Summary Verdict
 
-Complete chain from request to response (all in framework code, only reachable when the stale
-`signed` middleware is present at runtime):
-
-```
-GET /payment/return?payment_id=X&status_id=1&billcode=Y&order_id=Z
-  └─ HTTP Kernel → Router → Route[payment.return]
-       └─ web group (15 middlewares, §6.1)            → pass
-       └─ App\Http\Middleware\Authenticate            → pass (user logged in)
-       └─ App\Http\Middleware\ValidateSignature       ← STALE ROUTE CACHE ONLY
-            └─ hasValidSignatureWhileIgnoring() returns false (no signature/expires in URL)
-            └─ throw new InvalidSignatureException
-                 vendor/laravel/framework/src/Illuminate/Routing/Middleware/ValidateSignature.php:66
-                 "throw new InvalidSignatureException;"
-       └─ App\Exceptions\Handler::render()
-            └─ prepareException()  Handler.php:463 (InvalidSignatureException not remapped, pass-through)
-            └─ renderExceptionResponse() → prepareResponse()  Handler.php:639
-                 └─ isHttpException=true (InvalidSignatureException extends HttpException)
-                 └─ renderHttpException()  Handler.php:717
-                      └─ getHttpExceptionView('errors::403')  Handler.php:753
-                      └─ response()->view(403 view, ['exception' => $e], 403, [])
-   └─ RESPONSE  HTTP 403
-        └─ 403.blade.php:5   @section('message', __($exception->getMessage() ?: 'Forbidden'))
-             → $exception->getMessage() = "Invalid signature."
-        └─ minimal.blade.php:27-29  class="uppercase tracking-wider" → renders
-             "INVALID SIGNATURE"
-```
-
-Exception object definition (`vendor/laravel/framework/src/Illuminate/Routing/Exceptions/InvalidSignatureException.php:14-17`):
-
-```php
-public function __construct()
-{
-    parent::__construct(403, 'Invalid signature.');
-}
-```
-
-**Origin of the 403 status code:** `InvalidSignatureException.php:16` → `HttpException(403, 'Invalid signature.')`.
-
-**Origin of the "INVALID SIGNATURE" text:** `403.blade.php:5` (message) + `minimal.blade.php:28`
-(CSS `uppercase`).
-
----
-
-## 8. Runtime Analysis (Deployment Verification)
-
-| Check | Result |
-|-------|--------|
-| Source in repo | Correct. `payment.return` = `web` + `auth`, no `signed` anywhere. |
-| Route cache on this machine | **None** (`bootstrap/cache/` = only `packages.php`, `services.php`). |
-| Config cache on this machine | None (`bootstrap/cache/config.php` absent). |
-| Local web server | **Not running** (no listeners on 80/443/8080/8000). |
-| Local request traffic | None since **2026-06-25** (DebugSessionMiddleware log trail); no payment/signature entries. |
-| ngrok tunnel | Offline (404) at investigation time; no ngrok config on this machine. |
-| OPcache (local CLI) | Not loaded — irrelevant to route resolution. |
-| Production server (`aseems.ddns.net`) | Live Laravel app (login 200; Nginx/1.24.0 Ubuntu; PHP-FPM 8.3 per `dep.sh`). `/payment/return` → 302 `/login` (auth active; consistent with old cached route too). |
-| Deploy scripts | `git pull` + `cache:clear` + `config:clear` + `view:clear`. **No `route:clear`.** `php-fpm` not restarted. |
-| Server docs | Instruct running `php artisan route:cache` / `config:cache` (`README_IMPLEMENTATION.md:377`, `PAYMENT_SYSTEM_SETUP.md:141`, `SYSTEM_OVERVIEW.md:427`, `GEMINI_AI_TROUBLESHOOTING.md:52`). |
-
-**Conclusion of the deployment check:** the machine running this checkout is not the machine
-serving the payment flow (evidence: no traffic, no server process, no tunnel, no route cache).
-The request being served is handled by the deployed server, whose **runtime route table is not
-verifiable from the outside** but whose observed behavior (302 for guests) is fully consistent
-with a pre-fix cached route. Because the deploy pipeline never invalidates the route cache, any
-`route:cache` run on the server (documented as normal operational practice in this repo) leaves
-the old `signed` route in force indefinitely.
-
----
-
-## 9. Root Cause
-
-### Primary Root Cause
-
-The deployed server is still executing the **pre-fix route definition** for `payment.return`
-(`->middleware('signed')`). The most probable mechanism is a **stale route cache**
-(`bootstrap/cache/routes-v7.php` on the server) generated before commit `b6d276e`
-(2026-07-30). Laravel loads this file in preference to `routes/web.php`, and the deployment
-scripts (`deploy.sh`/`dep.sh`) never run `php artisan route:clear`, so the cache survives every
-deployment. An authenticated user redirected back from ToyyibPay passes `auth`, then hits the
-cached `ValidateSignature` middleware, which fails because the return URL carries no valid
-`signature`/`expires` parameters → `InvalidSignatureException(403, 'Invalid signature.')` →
-rendered as **403 INVALID SIGNATURE**.
-
-The alternative (indistinguishable from outside): the server's deployed code predates the fix
-(never redeployed since 2026-07-30). Both are the same class of problem: **stale runtime state
-on the deployed server**.
-
-### Supporting Evidence
-
-1. `php artisan route:list --path=payment -v` → `payment.return` has only `web` + `Authenticate`.
-2. Zero occurrences of `signed`, `signedRoute`, `hasValidSignature`, `abort(403)` in the payment flow (`§4`).
-3. No route cache exists on this machine (`§3.4`).
-4. `git show b6d276e` proves the route previously used `middleware('signed')` and the fix (2026-07-30) is committed and pushed.
-5. This machine serves no traffic (log trail ends 2026-06-25; no server process; ngrok offline).
-6. Production server is live and `/payment/return` behaves like the pre-fix route for guests (302 → login).
-7. Deploy scripts omit `route:clear`; repo docs instruct operators to run `route:cache` on the server.
-8. The exact "INVALID SIGNATURE" text is the framework's uppercase rendering of `InvalidSignatureException`'s message (`403.blade.php:5`, `minimal.blade.php:28`).
-
-### Confidence Level
-
-**High.** The source-side analysis is exhaustive and definitive: the current code cannot throw
-`InvalidSignatureException` for this route. The only code that can produce the observed response
-is `ValidateSignature`, which requires a `signed` route at runtime. That route only exists in a
-stale cache / stale deployment on the serving host.
-
-### Exact File / Line Responsible
-
-- **Stale artifact (runtime):** `bootstrap/cache/routes-v7.php` on the deployed server,
-  generated from pre-fix `routes/web.php:74` (`->middleware('signed')`).
-- **Throwing code:** `vendor/laravel/framework/src/Illuminate/Routing/Middleware/ValidateSignature.php:66`
-  → `throw new InvalidSignatureException;`
-- **Status + message:** `vendor/laravel/framework/src/Illuminate/Routing/Exceptions/InvalidSignatureException.php:16`
-  → `parent::__construct(403, 'Invalid signature.');`
-- **Rendering:** `vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/403.blade.php:5`
-  and `.../views/minimal.blade.php:28` (uppercase).
-- **Fixed in source (not yet effective on server):** `routes/web.php:74`.
-
----
-
-## 10. Recommended Fix
-
-**On the deployed server (`/var/www/campus-event-hub`):**
-
-```bash
-cd /var/www/campus-event-hub
-
-# 1. Drop the stale route table and other cached artifacts
-sudo -u www-data php artisan route:clear
-sudo -u www-data php artisan config:clear
-sudo -u www-data php artisan view:clear
-sudo -u www-data php artisan optimize:clear
-
-# 2. Verify the route is now registered without 'signed'
-sudo -u www-data php artisan route:list --path=payment
-
-# 3. Restart PHP-FPM (not just nginx) to clear any OPcache of the old controller/middleware
-sudo systemctl restart php8.3-fpm
-sudo systemctl restart nginx
-```
-
-Then re-test a **fresh** ToyyibPay payment end-to-end while logged in.
-
-**Prevent recurrence (source of the problem):**
-
-1. Add `php artisan route:clear` (and `php artisan view:clear` / `optimize:clear`) to both
-   `deploy.sh` and `dep.sh`, alongside the existing `cache:clear`/`config:clear` steps.
-2. If you intend to cache routes in production (`route:cache`), always do it **after** `git pull`
-   within the deploy step, and re-run it on every deploy. Simplest safe option: `route:clear` on
-   every deploy and don't cache routes.
-3. Update the operational docs (`README_IMPLEMENTATION.md:377` etc.) so `route:clear` is always
-   paired with `route:cache`.
-4. Confirm the same fix is applied if any other server (e.g., a machine behind the ngrok tunnel)
-   serves this app; clear its caches too.
-
-No application code changes are required — the source is already correct.
+- **Reusable as-is:** `SocialPost`, `ImgBBService`, `Event` platform helpers, club activity/notification services, the two-step publish pattern.
+- **Extend:** `InstagramController`, `Club`, `config/services.php`, social-media dashboard blade.
+- **Refactor into shared service:** `MetaOAuthService` (and ideally `MetaGraphService`), because Instagram + Threads duplicate the OAuth ceremony and two-step publish flow.
+- **New:** `ThreadsOAuthController`, `ThreadsService`, `ThreadsAccount` + migration, Threads routes/config/UI.
+- **Dedicated controller, not integration:** keep `InstagramOAuthController` intact; add a thin `ThreadsOAuthController` on top of the shared service.
+- **No DB change for post tracking:** `social_posts` already supports `threads`. Only a new `threads_accounts` table is required for per-club credentials.
