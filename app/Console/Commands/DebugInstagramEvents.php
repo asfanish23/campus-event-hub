@@ -28,7 +28,7 @@ class DebugInstagramEvents extends Command
     {
         $limit = $this->argument('limit');
         
-        $events = Event::orderBy('created_at', 'desc')
+        $events = Event::latestEvents()
             ->limit($limit)
             ->get();
 

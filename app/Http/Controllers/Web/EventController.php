@@ -70,7 +70,7 @@ class EventController extends Controller
             $query->where('name', 'like', '%' . $request->get('search') . '%');
         }
 
-        $events = $query->orderBy('date', 'desc')->get();
+        $events = $query->latestEvents()->get();
         $categories = [
             'Academic',
             'Sports',

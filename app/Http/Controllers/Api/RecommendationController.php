@@ -183,7 +183,7 @@ class RecommendationController extends Controller
         }
 
         $likedEventIds = EventLike::where('user_id', $user->id)->pluck('event_id');
-        $likedEvents = Event::with('club')->whereIn('id', $likedEventIds)->get();
+        $likedEvents = Event::with('club')->whereIn('id', $likedEventIds)->latestEvents()->get();
 
         return response()->json([
             'success' => true,

@@ -37,7 +37,7 @@ class ClubProfileController extends Controller
                 $query->whereYear('date', $request->year);
             }
 
-            $events = $query->orderBy('date', 'desc')->get();
+            $events = $query->latestEvents()->get();
 
             // Get all available years from club events
             $years = $club->events()

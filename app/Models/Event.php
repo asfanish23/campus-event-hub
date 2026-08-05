@@ -231,6 +231,17 @@ class Event extends Model
     }
 
     /**
+     * Default ordering for event listings:
+     * newest date first, then latest start time, then most recently created.
+     */
+    public function scopeLatestEvents(Builder $query): Builder
+    {
+        return $query->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->orderBy('created_at', 'desc');
+    }
+
+    /**
      * Apply a computed-status filter using the event date and times.
      */
     public function scopeWhereComputedStatus(Builder $query, string $status): Builder

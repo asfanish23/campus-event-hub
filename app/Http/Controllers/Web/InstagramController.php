@@ -96,7 +96,7 @@ class InstagramController extends Controller
                 $query->orderBy('date', 'asc');
                 break;
             case 'date_desc':
-                $query->orderBy('date', 'desc');
+                $query->latestEvents();
                 break;
             case 'name_asc':
                 $query->orderBy('name', 'asc');
@@ -111,7 +111,7 @@ class InstagramController extends Controller
                 $query->orderBy('created_at', 'asc');
                 break;
             default:
-                $query->orderBy('date', 'desc');
+                $query->latestEvents();
         }
         
         $events = $query->get();

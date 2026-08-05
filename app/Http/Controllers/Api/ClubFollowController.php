@@ -124,8 +124,7 @@ class ClubFollowController extends Controller
             ->with('club')
             ->whereIn('club_id', $followedClubIds)
             ->whereDate('date', '>=', now()->toDateString())
-            ->orderBy('date', 'asc')
-            ->orderBy('start_time', 'asc')
+            ->latestEvents()
             ->limit((int) $request->query('limit', 20))
             ->get()
             ->map(fn (Event $event) => $this->formatEvent($event, $user));

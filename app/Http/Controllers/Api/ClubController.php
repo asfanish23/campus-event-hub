@@ -110,7 +110,7 @@ class ClubController extends Controller
     public function getEvents(Club $club)
     {
         try {
-            $events = $club->events()->get();
+            $events = $club->events()->latestEvents()->get();
             return response()->json([
                 'data' => $events,
                 'count' => $events->count()

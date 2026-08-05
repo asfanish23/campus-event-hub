@@ -528,7 +528,7 @@ class TelegramBotService
 
         $events = Event::whereBetween('date', [$now->toDateString(), $weekEnd->toDateString()])
             ->where('status', 'upcoming')
-            ->orderBy('date', 'asc')
+            ->latestEvents()
             ->get();
 
         if ($events->isEmpty()) {
@@ -662,7 +662,7 @@ class TelegramBotService
             ->where('status', 'upcoming')
             ->whereIn('category', $interests);
 
-        $events = $query->orderBy('date', 'asc')->get();
+        $events = $query->latestEvents()->get();
 
         if ($events->isEmpty()) {
             return;
@@ -701,7 +701,7 @@ class TelegramBotService
             ->when($preference->category_preferences, function ($query) use ($preference) {
                 $query->whereIn('category', $preference->category_preferences);
             })
-            ->orderBy('date', 'asc')
+            ->latestEvents()
             ->get();
 
         if ($events->isEmpty()) {

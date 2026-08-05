@@ -208,7 +208,7 @@ class TelegramController extends Controller
 
         $query = \App\Models\Event::whereBetween('date', [$now->toDateString(), $weekEnd->toDateString()])
             ->where('status', 'upcoming')
-            ->orderBy('date', 'asc')
+            ->latestEvents()
             ->with('club');
 
         // Filter by user preferences

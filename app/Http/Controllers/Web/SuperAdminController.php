@@ -29,8 +29,7 @@ class SuperAdminController extends Controller
 
         $upcomingEvents = Event::with('club')
             ->whereComputedStatus('upcoming')
-            ->orderBy('date', 'asc')
-            ->orderBy('start_time', 'asc')
+            ->latestEvents()
             ->take(5)
             ->get();
 
@@ -62,7 +61,7 @@ class SuperAdminController extends Controller
             $query->where('name', 'like', '%' . $request->get('search') . '%');
         }
 
-        $events = $query->paginate(10);
+        $events = $query->latestEvents()->paginate(10);
         $clubs = Club::all();
         $statuses = ['Upcoming', 'Currently Running', 'Completed'];
 

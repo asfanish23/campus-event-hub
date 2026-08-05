@@ -28,8 +28,7 @@ class StudentDashboardController extends Controller
         // Display only Upcoming or Ongoing status (exclude Completed)
         $allEvents = Event::with('club')
             ->whereDate('date', '>=', now()->toDateString())
-            ->orderBy('date', 'asc')
-            ->orderBy('start_time', 'asc')
+            ->latestEvents()
             ->get()
             ->filter(fn (Event $event) => in_array($event->getComputedStatus(), ['upcoming', 'ongoing'], true))
             ->values();
@@ -74,7 +73,7 @@ class StudentDashboardController extends Controller
         // Get club's events
         $query = Event::where('club_id', $club->id)
             ->whereDate('date', '>=', now()->toDateString())
-            ->orderBy('date', 'asc');
+            ->latestEvents();
         
         // Filter by year if provided
         if ($request->year) {
@@ -278,7 +277,7 @@ class StudentDashboardController extends Controller
     public function calendar()
     {
         // Get all events (past, ongoing, and upcoming) sorted by date
-        $events = Event::orderBy('date', 'asc')
+        $events = Event::latestEvents()
             ->with('club')
             ->get();
 
@@ -310,8 +309,7 @@ class StudentDashboardController extends Controller
             $query->whereYear('date', $request->year);
         }
         
-        $completedEvents = $query->orderBy('date', 'desc')
-            ->orderBy('start_time', 'desc')
+        $completedEvents = $query->latestEvents()
             ->get()
             ->filter(fn (Event $event) => $event->getComputedStatus() === 'completed')
             ->values();

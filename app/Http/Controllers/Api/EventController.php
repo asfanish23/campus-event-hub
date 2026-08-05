@@ -16,8 +16,7 @@ class EventController extends Controller
     private function baseEventQuery()
     {
         return Event::with('club')
-            ->orderBy('date', 'asc')
-            ->orderBy('start_time', 'asc');
+            ->latestEvents();
     }
 
     private function safeLikesCount(Event $event): int
@@ -738,7 +737,7 @@ class EventController extends Controller
                 ], 404);
             }
 
-            $likedEvents = $user->likedEvents()->with('club')->orderBy('date', 'desc')->get();
+            $likedEvents = $user->likedEvents()->with('club')->latestEvents()->get();
 
             $data = $likedEvents->map(function ($event) {
                 $eventData = $event->toArray();
