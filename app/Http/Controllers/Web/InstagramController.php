@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\SocialPost;
-use App\Models\ThreadsAccount;
 use App\Services\ClubActivityService;
 use App\Services\InstagramService;
 use App\Services\ThreadsService;
@@ -126,8 +125,6 @@ class InstagramController extends Controller
         $hasInstagramCredentials = !empty(config('services.instagram.token')) && !empty(config('services.instagram.user_id'));
         $hasFacebookCredentials = !empty(config('services.facebook.page_access_token')) && !empty(config('services.facebook.page_id'));
         $hasThreadsCredentials = !empty(config('services.threads.token')) && !empty(config('services.threads.user_id'));
-        $threadsAccount = ThreadsAccount::where('club_id', $user->club_id)->first();
-        $threadsClubId = $user->club_id;
         $hasCredentials = $hasInstagramCredentials;
 
         return view('instagram.index', compact(
@@ -136,8 +133,6 @@ class InstagramController extends Controller
             'hasInstagramCredentials',
             'hasFacebookCredentials',
             'hasThreadsCredentials',
-            'threadsAccount',
-            'threadsClubId',
             'categories'
         ));
     }
@@ -284,68 +279,51 @@ class InstagramController extends Controller
             return redirect()->back()->with('error', 'Event must have an image to post to Threads');
         }
 
-        $user = Auth::user();
-        $threadsAccount = ThreadsAccount::where('club_id', $user->club_id)->first();
-        $hasGlobalThreadsCredentials = !empty(config('services.threads.token')) && !empty(config('services.threads.user_id'));
-
-        if (($threadsAccount && $threadsAccount->isTokenValid()) || $hasGlobalThreadsCredentials) {
-            $alreadyPosted = $event->isPostedToPlatform(SocialPost::PLATFORM_THREADS);
-
-            try {
-                $publicImageUrl = $this->makeEventImagePublicUrl($event, 'threads');
-                $caption = $this->buildCaption($event, $alreadyPosted);
-
-                if ($threadsAccount && $threadsAccount->isTokenValid()) {
-                    $this->refreshThreadsTokenIfNeeded($threadsAccount);
-                    $token = $threadsAccount->getDecryptedToken();
-                    $threadsUserId = $threadsAccount->threads_user_id;
-                    $response = $this->threadsService->postImageWithCustomCredentials($publicImageUrl, $caption, $token, $threadsUserId);
-                } else {
-                    $token = config('services.threads.token');
-                    $threadsUserId = config('services.threads.user_id');
-                    $response = $this->threadsService->postImage($publicImageUrl, $caption);
-                }
-
-                if (!($response['success'] ?? false)) {
-                    $message = $response['message'] ?? 'Unknown Threads API error';
-                    $this->recordSocialPost($event, SocialPost::PLATFORM_THREADS, SocialPost::STATUS_FAILED, null);
-
-                    return redirect()->back()->with('error', 'Failed to post to Threads: ' . $message);
-                }
-
-                $postedAt = now();
-
-                if ($threadsAccount) {
-                    $threadsAccount->update(['last_post_at' => $postedAt]);
-                }
-
-                $threadsPermalink = $this->threadsService->getMediaPermalink($response['media_id'] ?? null, $token);
-
-                $this->recordSocialPost(
-                    $event,
-                    SocialPost::PLATFORM_THREADS,
-                    SocialPost::STATUS_POSTED,
-                    $response['media_id'] ?? null,
-                    $postedAt,
-                    $threadsPermalink
-                );
-
-                $actionText = $alreadyPosted ? 'reposted' : 'posted';
-
-                return redirect()->back()->with('success', 'Event ' . $actionText . ' to Threads successfully!');
-            } catch (Exception $e) {
-                Log::error('Threads posting error', [
-                    'event_id' => $event->id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                $this->recordSocialPost($event, SocialPost::PLATFORM_THREADS, SocialPost::STATUS_FAILED, null);
-
-                return redirect()->back()->with('error', 'Error posting to Threads: ' . $e->getMessage());
-            }
+        $accessToken = config('services.threads.token');
+        $threadsUserId = config('services.threads.user_id');
+        if (empty($accessToken) || empty($threadsUserId)) {
+            return redirect()->back()->with('error', 'Threads credentials are not configured.');
         }
 
-        return redirect()->back()->with('error', 'Threads account is not connected for this club.');
+        $alreadyPosted = $event->isPostedToPlatform(SocialPost::PLATFORM_THREADS);
+
+        try {
+            $publicImageUrl = $this->makeEventImagePublicUrl($event, 'threads');
+            $caption = $this->buildCaption($event, $alreadyPosted);
+            $response = $this->threadsService->postImage($publicImageUrl, $caption);
+
+            if (!($response['success'] ?? false)) {
+                $message = $response['message'] ?? 'Unknown Threads API error';
+                $this->recordSocialPost($event, SocialPost::PLATFORM_THREADS, SocialPost::STATUS_FAILED, null);
+
+                return redirect()->back()->with('error', 'Failed to post to Threads: ' . $message);
+            }
+
+            $postedAt = now();
+            $threadsPermalink = $this->threadsService->getMediaPermalink($response['media_id'] ?? null);
+
+            $this->recordSocialPost(
+                $event,
+                SocialPost::PLATFORM_THREADS,
+                SocialPost::STATUS_POSTED,
+                $response['media_id'] ?? null,
+                $postedAt,
+                $threadsPermalink
+            );
+
+            $actionText = $alreadyPosted ? 'reposted' : 'posted';
+
+            return redirect()->back()->with('success', 'Event ' . $actionText . ' to Threads successfully!');
+        } catch (Exception $e) {
+            Log::error('Threads posting error', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->recordSocialPost($event, SocialPost::PLATFORM_THREADS, SocialPost::STATUS_FAILED, null);
+
+            return redirect()->back()->with('error', 'Error posting to Threads: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -479,53 +457,18 @@ class InstagramController extends Controller
         }
     }
 
-    /**
-     * Refresh a club Threads access token when it is within 30 days of expiry.
-     *
-     * Long-lived tokens are valid for 60 days and can be refreshed while unexpired.
-     */
-    private function refreshThreadsTokenIfNeeded(ThreadsAccount $threadsAccount): void
-    {
-        if (!$threadsAccount->token_expires_at || $threadsAccount->token_expires_at->gt(now()->addDays(30))) {
-            return;
-        }
-
-        $refresh = $this->threadsService->refreshLongLivedToken($threadsAccount->getDecryptedToken());
-
-        if (($refresh['success'] ?? false) && !empty($refresh['access_token'])) {
-            $threadsAccount->update([
-                'access_token' => $refresh['access_token'],
-                'token_expires_at' => $refresh['expires_in']
-                    ? now()->addSeconds((int) $refresh['expires_in'])
-                    : now()->addDays(60),
-            ]);
-        }
-    }
-
     private function postToThreadsSilently(Event $event): array
     {
-        $user = Auth::user();
-        $threadsAccount = ThreadsAccount::where('club_id', $user->club_id)->first();
-        $hasGlobalThreadsCredentials = !empty(config('services.threads.token')) && !empty(config('services.threads.user_id'));
+        $hasThreadsCredentials = !empty(config('services.threads.token')) && !empty(config('services.threads.user_id'));
 
-        if (!($threadsAccount && $threadsAccount->isTokenValid()) && !$hasGlobalThreadsCredentials) {
-            return ['success' => false, 'message' => 'Threads account is not connected'];
+        if (!$hasThreadsCredentials) {
+            return ['success' => false, 'message' => 'Threads credentials are not configured'];
         }
 
         try {
             $publicImageUrl = $this->makeEventImagePublicUrl($event, 'threads');
             $caption = $this->buildCaption($event, $event->isPostedToPlatform(SocialPost::PLATFORM_THREADS));
-
-            if ($threadsAccount && $threadsAccount->isTokenValid()) {
-                $this->refreshThreadsTokenIfNeeded($threadsAccount);
-                $token = $threadsAccount->getDecryptedToken();
-                $threadsUserId = $threadsAccount->threads_user_id;
-                $response = $this->threadsService->postImageWithCustomCredentials($publicImageUrl, $caption, $token, $threadsUserId);
-            } else {
-                $token = config('services.threads.token');
-                $threadsUserId = config('services.threads.user_id');
-                $response = $this->threadsService->postImage($publicImageUrl, $caption);
-            }
+            $response = $this->threadsService->postImage($publicImageUrl, $caption);
 
             if (!($response['success'] ?? false)) {
                 $message = $response['message'] ?? 'Unknown Threads API error';
@@ -534,12 +477,7 @@ class InstagramController extends Controller
             }
 
             $postedAt = now();
-
-            if ($threadsAccount) {
-                $threadsAccount->update(['last_post_at' => $postedAt]);
-            }
-
-            $threadsPermalink = $this->threadsService->getMediaPermalink($response['media_id'] ?? null, $token);
+            $threadsPermalink = $this->threadsService->getMediaPermalink($response['media_id'] ?? null);
 
             $this->recordSocialPost(
                 $event,

@@ -19,7 +19,6 @@ use App\Http\Controllers\Web\PaymentTestController;
 use App\Http\Controllers\Web\StudentProfileController;
 use App\Http\Controllers\Web\ShoppingController;
 use App\Http\Controllers\Web\InstagramOAuthController;
-use App\Http\Controllers\Web\ThreadsOAuthController;
 use App\Http\Controllers\Web\AiGeneratorController;
 use App\Http\Controllers\Web\GoogleController;
 
@@ -123,10 +122,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/instagram/oauth/redirect/{clubId}', [InstagramOAuthController::class, 'redirectToInstagram'])->name('instagram.oauth.redirect');
     Route::get('/instagram/oauth/callback', [InstagramOAuthController::class, 'handleCallback'])->name('instagram.oauth.callback');
     Route::post('/instagram/oauth/fetch-account', [InstagramOAuthController::class, 'fetchAccountFromToken'])->name('instagram.oauth.fetch-account');
-
-    // Threads OAuth routes (for easier connection)
-    Route::get('/threads/oauth/redirect/{club}', [ThreadsOAuthController::class, 'redirectToThreads'])->name('threads.oauth.redirect');
-    Route::get('/threads/oauth/callback', [ThreadsOAuthController::class, 'handleCallback'])->name('threads.oauth.callback');
 
     Route::prefix('super-admin')->name('super-admin.')->middleware(['auth', 'super_admin'])->group(function () {
         Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');

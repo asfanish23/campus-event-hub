@@ -90,10 +90,7 @@
                 </div>
 
                 <!-- Status Alert -->
-                @php
-                    $threadsConnected = $threadsAccount && $threadsAccount->isTokenValid();
-                @endphp
-                @if(!$hasInstagramCredentials && !$hasFacebookCredentials && !$hasThreadsCredentials && !$threadsConnected)
+                @if(!$hasInstagramCredentials && !$hasFacebookCredentials && !$hasThreadsCredentials)
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
                         <div class="flex">
                             <div class="flex-shrink-0">
@@ -117,10 +114,10 @@
                                 <p class="text-sm text-green-800">
                                     Ready platforms:
                                     @if($hasInstagramCredentials) Instagram @endif
-                                    @if($hasInstagramCredentials && ($hasFacebookCredentials || $hasThreadsCredentials || $threadsConnected)) and @endif
+                                    @if($hasInstagramCredentials && ($hasFacebookCredentials || $hasThreadsCredentials)) and @endif
                                     @if($hasFacebookCredentials) Facebook @endif
-                                    @if(($hasInstagramCredentials || $hasFacebookCredentials) && ($hasThreadsCredentials || $threadsConnected)) and @endif
-                                    @if($hasThreadsCredentials || $threadsConnected) Threads @endif
+                                    @if(($hasInstagramCredentials || $hasFacebookCredentials) && $hasThreadsCredentials) and @endif
+                                    @if($hasThreadsCredentials) Threads @endif
                                 </p>
                             </div>
                         </div>
@@ -468,39 +465,23 @@
                                                         <span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-gray-800">Threads</span>
                                                     </div>
 
-                                                    @if($threadsConnected)
-                                                        <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> {{ $threadsPosted ? 'Posted' : 'Not Posted' }}</p>
-                                                        <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> {{ $threadsPostedAt ? $threadsPostedAt->format('M d, Y H:i') : 'N/A' }}</p>
-                                                        <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Connected as:</span> {{ $threadsAccount->threads_username }}</p>
+                                                    <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> {{ $threadsPosted ? 'Posted' : 'Not Posted' }}</p>
+                                                    <p class="text-xs text-gray-600 mt-1"><span class="font-semibold">Last posted:</span> {{ $threadsPostedAt ? $threadsPostedAt->format('M d, Y H:i') : 'N/A' }}</p>
 
-                                                        <div class="mt-4 space-y-2">
-                                                            <form action="{{ route('social-media.post.threads', $event->id) }}" method="POST">
-                                                                @csrf
-                                                                <button type="submit" class="w-full bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
-                                                                    {{ $threadsPosted ? 'Repost' : 'Post Now' }}
-                                                                </button>
-                                                            </form>
+                                                    <div class="mt-4 space-y-2">
+                                                        <form action="{{ route('social-media.post.threads', $event->id) }}" method="POST">
+                                                            @csrf
+                                                            <button type="submit" class="w-full bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                {{ $threadsPosted ? 'Repost' : 'Post Now' }}
+                                                            </button>
+                                                        </form>
 
-                                                            @if($threadsPermalink)
-                                                                <a href="{{ $threadsPermalink }}" target="_blank" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
-                                                                    View Post
-                                                                </a>
-                                                            @else
-                                                                <button type="button" disabled class="block w-full text-center bg-gray-300 text-gray-600 text-sm font-semibold py-2 px-3 rounded-lg cursor-not-allowed" title="Post URL not available">
-                                                                    Post URL not available
-                                                                </button>
-                                                            @endif
-                                                        </div>
-                                                    @else
-                                                        <p class="text-sm text-gray-800"><span class="font-semibold">Status:</span> Not Connected</p>
-                                                        <p class="text-xs text-gray-600 mt-1">Connect your Threads account to publish event posts to your club's Threads feed.</p>
-
-                                                        <div class="mt-4">
-                                                            <a href="{{ route('threads.oauth.redirect', $threadsClubId) }}" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
-                                                                🔗 Connect Threads
+                                                        @if($threadsPermalink)
+                                                            <a href="{{ $threadsPermalink }}" target="_blank" class="block w-full text-center bg-gray-800 hover:bg-black text-white text-sm font-semibold py-2 px-3 rounded-lg transition">
+                                                                View Post
                                                             </a>
-                                                        </div>
-                                                    @endif
+                                                        @endif
+                                                    </div>
                                                 </section>
                                             </div>
 
