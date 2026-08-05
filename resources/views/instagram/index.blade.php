@@ -37,7 +37,7 @@
                     <p class="px-4 text-xs text-purple-300 uppercase font-semibold tracking-wide">Social Media</p>
                 </div>
                 <a href="{{ route('social-media.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-500 hover:bg-purple-400 transition text-sm font-medium">
-                    <span>📷</span>
+                    <span>📱</span>
                     <span>Social Media</span>
                 </a>
 
