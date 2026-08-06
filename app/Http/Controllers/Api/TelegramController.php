@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\TelegramBotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -55,9 +56,9 @@ class TelegramController extends Controller
             'telegram_username' => 'nullable|string',
         ]);
 
-        $user = auth()->user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -93,9 +94,9 @@ class TelegramController extends Controller
      */
     public function getPreferences(Request $request)
     {
-        $user = auth()->user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -120,9 +121,9 @@ class TelegramController extends Controller
      */
     public function updatePreferences(Request $request)
     {
-        $user = auth()->user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -167,9 +168,9 @@ class TelegramController extends Controller
      */
     public function unlinkAccount(Request $request)
     {
-        $user = auth()->user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -197,9 +198,9 @@ class TelegramController extends Controller
      */
     public function getThisWeekEvents(Request $request)
     {
-        $user = auth()->user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (!$user instanceof User) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
